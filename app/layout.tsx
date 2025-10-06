@@ -7,6 +7,7 @@ import { Suspense } from "react"
 import "./globals.css"
 import GradientBackdrop from "@/components/GradientBackdrop"
 import { SolanaWalletProvider } from "@/components/wallet/wallet-provider"
+import { ClientProviders } from "@/components/providers/client-providers"
 
 export const metadata: Metadata = {
   title: "Lyra",
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <Suspense fallback={null}>
           <SolanaWalletProvider>
-            <GradientBackdrop>{children}</GradientBackdrop>
+            <ClientProviders>
+              <GradientBackdrop>{children}</GradientBackdrop>
+            </ClientProviders>
           </SolanaWalletProvider>
         </Suspense>
         <Analytics />

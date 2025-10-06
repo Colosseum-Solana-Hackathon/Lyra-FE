@@ -17,6 +17,9 @@ export function SiteHeader() {
           <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground">
             Home
           </Link>
+          <Link href="/onramp" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            OnRamp
+          </Link>
           <Link href="/swap" className="text-sm font-medium text-muted-foreground hover:text-foreground">
             Swap
           </Link>
