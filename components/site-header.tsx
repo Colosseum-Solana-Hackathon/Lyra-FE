@@ -9,7 +9,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-3">
-          <div className={cn("size-8 rounded-full bg-primary ring-2 ring-primary/40 shadow-lg shadow-primary/30")} />
+          <img src="/images/lyra-logo.png" alt="Lyra logo" className="h-8 w-8 rounded-full object-cover" />
           <span className="text-xl font-bold">Lyra</span>
         </Link>
 

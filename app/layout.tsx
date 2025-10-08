@@ -8,6 +8,7 @@ import "./globals.css"
 import GradientBackdrop from "@/components/GradientBackdrop"
 import { SolanaWalletProvider } from "@/components/wallet/wallet-provider"
 import { ClientProviders } from "@/components/providers/client-providers"
+import Footer from "@/components/footer" // add this import (adjust path if needed)
 
 export const metadata: Metadata = {
   title: "Lyra",
@@ -30,6 +31,8 @@ export default function RootLayout({
             </ClientProviders>
           </SolanaWalletProvider>
         </Suspense>
+        <Footer />
+
         <Analytics />
       </body>
     </html>
