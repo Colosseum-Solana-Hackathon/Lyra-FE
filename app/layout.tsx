@@ -24,6 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark antialiased">
+       <head>
+        <link rel="icon" href="/favicon.ico" sizes="196x196" />
+      </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <Suspense fallback={null}>
           <SolanaWalletProvider>
