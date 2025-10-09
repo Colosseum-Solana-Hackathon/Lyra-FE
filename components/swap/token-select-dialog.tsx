@@ -23,12 +23,13 @@ type JupToken = {
   name: string
   symbol: string
   icon?: string
- decimals: number
+  decimals: number
   isVerified?: boolean
   usdPrice?: number
 }
-const JUP_VERIFIED_URL = "https://lite-api.jup.ag/tokens/v2/tag?query=verified"
 
+const JUP_VERIFIED_URL =
+  "https://lite-api.jup.ag/tokens/v2/toptrending/24h?limit=20"
 
 export function TokenSelectDialog({ open, onOpenChange, onSelect, tokens, spotlight = [] }: Props) {
   const [q, setQ] = React.useState("")
@@ -36,8 +37,6 @@ export function TokenSelectDialog({ open, onOpenChange, onSelect, tokens, spotli
 const [remote, setRemote] = React.useState<Token[]>([])
  const [loading, setLoading] = React.useState(false)
  const [error, setError] = React.useState<string | null>(null)
-  // const list = React.useMemo(() => {
-  //   const pool = tab === "active" ? tokens.filter((t) => !t.archived) : tokens.filter((t) => t.archived)
   const source: Token[] = (tokens && tokens.length > 0) ? tokens : remote
   const list = React.useMemo(() => {
     const pool = tab === "active" ? source.filter((t) => !t.archived) : source.filter((t) => t.archived)
@@ -72,10 +71,7 @@ const [remote, setRemote] = React.useState<Token[]>([])
           network: "Solana",
           archived: false,
           badge: t.isVerified ? "Verified" : undefined,
-          // (Optional) keep extras if your Token type allows them
-          // @ts-expect-error
           decimals: t.decimals,
-          // @ts-expect-error
           priceUsd: t.usdPrice,
         }))
         setRemote(mapped)
@@ -211,7 +207,6 @@ function TokenList({
               {/* <span className="ml-auto text-xs text-muted-foreground">{t.network}</span> */}
               <div className="ml-auto text-right">
                 {/* optional if you mapped priceUsd above */}
-                {/* @ts-expect-error */}
                 {typeof (t as any).priceUsd === "number" && (
                   <div className="text-xs font-medium">${(t as any).priceUsd.toFixed(4)}</div>
                 )}
