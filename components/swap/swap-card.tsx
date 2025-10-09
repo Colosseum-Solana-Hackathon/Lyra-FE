@@ -1,21 +1,41 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { ChevronDown, RefreshCcw } from "lucide-react"
-import { type Token, TOKENS, findTokenBySymbol } from "@/lib/tokens"
+// import { type Token, TOKENS, findTokenBySymbol } from "@/lib/tokens"
+import {type Token} from "@/lib/tokens"
 import { TokenSelectDialog } from "./token-select-dialog"
 
 import { useWallet } from "@solana/wallet-adapter-react"
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
 import { useConnection } from "@solana/wallet-adapter-react"
+type JupToken = {
+  id: string
+  name: string
+  symbol: string
+  icon?: string
+  decimals: number
+  isVerified?: boolean
+  usdPrice?: number
+}
+const JUP_VERIFIED_URL =
+  "https://lite-api.jup.ag/tokens/v2/tag?query=verified"
 
 export function SwapCard() {
-  const [fromToken, setFromToken] = useState<Token>(findTokenBySymbol("USDC")!) 
-  const [toToken, setToToken] = useState<Token>(findTokenBySymbol("USDC")!)
+ const PLACEHOLDER: Token = {
+    symbol: "—",
+    name: "Loading…",
+    address: "",
+    icon: "/placeholder.svg",
+    network: "Solana",
+    archived: false,
+  }
+  const [fromToken, setFromToken] = useState<Token>(PLACEHOLDER)
+  const [toToken, setToToken] = useState<Token>(PLACEHOLDER)
   const [amountFrom, setAmountFrom] = useState("")
   const [amountTo, setAmountTo] = useState("")
   const [openFor, setOpenFor] = useState<"from" | "to" | null>(null)
@@ -25,8 +45,46 @@ export function SwapCard() {
 
   const [fromBalance, setFromBalance] = useState<number | null>(null)
   const [toBalance, setToBalance] = useState<number | null>(null)
+  // fetched tokens from Jupiter
+  const [tokens, setTokens] = useState<Token[]>([])
+  const [tokenLoadErr, setTokenLoadErr] = useState<string | null>(null)
 
-  useMemo(() => {
+  useEffect(() => {
+    let aborted = false
+    ;(async () => {
+      try {
+        setTokenLoadErr(null)
+        const res = await fetch(JUP_VERIFIED_URL, { cache: "force-cache" })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: JupToken[] = await res.json()
+        const mapped: Token[] = json.map((t) => ({
+          symbol: t.symbol,
+         name: t.name,
+          address: t.id,
+          icon: t.icon,
+          network: "Solana",
+          archived: false,
+          badge: t.isVerified ? "Verified" : undefined,
+          // If your Token type allows:
+          decimals: t.decimals,
+          priceUsd: t.usdPrice,
+        }))
+        if (aborted) return
+        setTokens(mapped)
+       // pick sane defaults (USDC / SOL) if present
+        const bySym = (s: string) =>
+          mapped.find((x) => x.symbol.toUpperCase() === s.toUpperCase())
+        setFromToken(bySym("SOL") ?? mapped[0] ?? PLACEHOLDER)
+       setToToken(bySym("USDC") ?? mapped[1] ?? mapped[0] ?? PLACEHOLDER)
+      } catch (e: any) {
+        if (!aborted) setTokenLoadErr(e?.message ?? "Failed to load tokens")
+      }
+    })()
+    return () => {
+      aborted = true
+    }
+  }, [])
+  useEffect(() => {
     async function fetchBalances() {
       if (!publicKey) return
       try {
@@ -75,6 +133,7 @@ export function SwapCard() {
           <div className="rounded-xl border border-border/60 bg-muted/10 p-4 lg:p-5">
             <div className="flex items-center gap-4">
               <button
+              type="button"
                 onClick={() => setOpenFor("from")}
                 className="group inline-flex select-none items-center gap-2 rounded-lg border border-border/60 bg-card px-4 py-3 hover:bg-accent lg:px-5 lg:py-3.5"
                 aria-label="Change source token"
@@ -156,7 +215,7 @@ export function SwapCard() {
         open={openFor !== null}
         onOpenChange={(v) => !v && setOpenFor(null)}
         onSelect={onSelect}
-        tokens={TOKENS}
+        tokens={tokens}
         spotlight={["SOL", "USDC"]}
       />
     </>
