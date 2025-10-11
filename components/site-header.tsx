@@ -26,6 +26,9 @@ export function SiteHeader() {
           <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground">
             Dashboard
           </Link>
+          <Link href="/earn" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            Earn
+          </Link>
         </nav>
 
         <div className="flex items-center gap-4">
