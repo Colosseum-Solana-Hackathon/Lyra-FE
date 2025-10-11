@@ -9,11 +9,70 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress"; // if you don't have one, replace with a div + w-[%]
 import { cn } from "@/lib/utils";
 import { ArrowUpRight } from "lucide-react";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+} from "recharts";
+
 
 /** ----- THEME HINTS -----
  * - Keeps your lyra look: soft borders, subtle shadows, rounded-2xl, muted surfaces
  * - Recharts uses current CSS variables for colors; we set fills per slice but keep brand-neutral.
  */
+type CumPoint = { t: string; total: number };
+
+/**
+ * Keeps a rolling time series of the vault's cumulative value.
+ * Appends a new point whenever vaultValue changes (≈ every price poll).
+ * Uses a light random-walk so it feels alive between updates.
+ */
+function useCumulativeSeries(
+    currentTotal: number,
+    opts: { points?: number; drift?: number; pollMs?: number } = {}
+) {
+    const points = opts.points ?? 40;
+    const drift = opts.drift ?? 0.008; // ±0.8% variance between points
+    const [data, setData] = useState<CumPoint[]>([]);
+
+    // seed once on mount
+    useEffect(() => {
+        let v = currentTotal;
+        const now = Date.now();
+        const seeded: CumPoint[] = [];
+        for (let i = points - 1; i >= 0; i--) {
+            const ts = new Date(now - i * 8_000).toLocaleTimeString(undefined, {
+                hour12: false,
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+            // walk backwards so the seed looks organic
+            v = Math.max(1, v * (1 + (Math.random() - 0.5) * drift));
+            seeded.push({ t: ts, total: v });
+        }
+        setData(seeded);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // append on each new currentTotal
+    useEffect(() => {
+        setData((prev) => {
+            const last = prev[prev.length - 1]?.total ?? currentTotal;
+            const nextVal = Math.max(1, last * (1 + (Math.random() - 0.5) * drift));
+            const ts = new Date().toLocaleTimeString(undefined, {
+                hour12: false,
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+            const next = [...prev, { t: ts, total: nextVal }];
+            return next.slice(-points);
+        });
+    }, [currentTotal, drift, points]);
+
+    return data;
+}
 
 // Static vault composition (can be props later)
 // Static vault composition (can be props later)
@@ -30,7 +89,7 @@ const ALLOCATION: Array<{ asset: Asset; pct: number }> = [
     { asset: Asset.ETH, pct: 0.30 },
 ];
 const tileHover =
-  "rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] hover:-translate-y-[1px] hover:bg-primary/10 hover:border-primary/60 hover:ring-2 hover:ring-primary/40 hover:shadow-[0_0_40px_hsl(var(--primary)/0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50";
+    "rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] hover:-translate-y-[1px] hover:bg-primary/10 hover:border-primary/60 hover:ring-2 hover:ring-primary/40 hover:shadow-[0_0_40px_hsl(var(--primary)/0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50";
 
 // Brand-ish colors & icons (you can swap to local /public svgs later)
 export const ASSET_META: Record<
@@ -95,7 +154,7 @@ function AssetIcon({
 type Prices = { BTC: number; SOL: number; ETH: number };
 
 // Tries Clipper’s public data; if it fails, uses a gentle random-walk mock.
-export default function useLivePrices(pollMs = 8000): Prices {
+export default function useLivePrices(pollMs = 3000): Prices {
     const [prices, setPrices] = useState<Prices>({ BTC: 68000, SOL: 150, ETH: 3500 });
     const last = useRef(prices);
 
@@ -156,6 +215,28 @@ function usd(n: number | undefined, digits = 2) {
 
 export function VaultTile() {
     const prices = useLivePrices();
+    // keep a small rolling history for sparklines
+    const [hist, setHist] = useState<Array<{ t: number; BTC: number; SOL: number; ETH: number }>>([]);
+
+    useEffect(() => {
+        setHist((prev) => {
+            const next = [...prev, { t: Date.now(), BTC: prices.BTC, SOL: prices.SOL, ETH: prices.ETH }];
+            return next.length > 120 ? next.slice(-120) : next; // last 120 points
+        });
+    }, [prices]);
+
+    // current $ contribution of each asset (weighted by vault allocation)
+    const contrib = useMemo(() => ({
+        BTC: prices.BTC * 0.40,
+        SOL: prices.SOL * 0.30,
+        ETH: prices.ETH * 0.30,
+        total: prices.BTC * 0.40 + prices.SOL * 0.30 + prices.ETH * 0.30,
+    }), [prices]);
+
+    // single-row dataset for stacked bar
+    const barData = useMemo(() => [
+        { name: "Vault", BTC: contrib.BTC, SOL: contrib.SOL, ETH: contrib.ETH }
+    ], [contrib]);
 
     // Derived metrics for the KPIs (just an example calc)
     // Assume a 1,000 vault supply with 1 share = proportional claim
@@ -166,6 +247,7 @@ export function VaultTile() {
             1 * prices.BTC + 500 * prices.SOL + 10 * prices.ETH; // illustrative
         return notional;
     }, [prices]);
+    const cumSeries = useCumulativeSeries(vaultValue);
 
     const kpi = [
         { label: "Vault Value", value: usd(vaultValue, 0) },
@@ -173,6 +255,8 @@ export function VaultTile() {
         { label: "Supply", value: `${vaultSupply.toLocaleString()} shares` },
         { label: "Liquidity", value: usd(vaultValue * 0.73, 0) },
         { label: "APY", value: "8.2%" },
+        { label: "TVL", value: usd(vaultValue * 0.73, 0) }, // demo: mirror Liquidity or wire your real TVL
+
     ];
     const pieData = ALLOCATION.map(({ asset, pct }) => ({
         name: asset,
@@ -242,88 +326,143 @@ export function VaultTile() {
                                 </ResponsiveContainer>
                             </div>
 
-                            <div className="mt-5 space-y-3">
+                            <div className="mt-6 space-y-4">
                                 {ALLOCATION.map(({ asset, pct }) => {
                                     const meta = ASSET_META[asset];
-                                    return (
-                                        <div key={asset} className="flex items-center gap-3">
-                                            <a
-                                                href={meta.href}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-2 hover:opacity-90"
-                                                title={meta.name}
-                                            >
-                                                <span
-                                                    className="inline-flex size-2.5 rounded-full"
-                                                    style={{ background: meta.color }}
-                                                />
-                                                {/* icon + symbol */}
-                                                <AssetIcon asset={asset} size={20} className="size-5" />
-                                                <span className="w-20 text-xs font-medium">{asset}</span>
-                                            </a>
+                                    const price = asset === Asset.BTC ? prices.BTC : asset === Asset.SOL ? prices.SOL : prices.ETH;
+                                    const spark = hist.slice(-40); // recent points for the sparkline
 
+                                    return (
+                                        <div
+                                            key={asset}
+                                            className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5
+                   hover:border-primary/60 hover:bg-primary/10
+                   transition-all duration-200 ease-out hover:scale-[1.01] hover:-translate-y-[0.5px]
+                   hover:ring-2 hover:ring-primary/30"
+                                        >
+                                            {/* dot + icon + symbol */}
+                                            <span className="inline-flex size-2.5 rounded-full" style={{ background: meta.color }} />
+                                            <AssetIcon asset={asset} size={20} className="size-5" />
+                                            <span className="w-12 text-xs font-medium">{asset}</span>
+
+                                            {/* allocation bar */}
                                             <div className="flex-1">
                                                 <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                                    <div
-                                                        className="h-2 rounded-full"
-                                                        style={{ width: `${pct * 100}%`, background: meta.color }}
-                                                    />
+                                                    <div className="h-2 rounded-full" style={{ width: `${pct * 100}%`, background: meta.color }} />
                                                 </div>
                                             </div>
 
-                                            <div className="w-12 text-right text-xs text-muted-foreground">
+                                            {/* percentage */}
+                                            <div className="w-10 text-right text-xs text-muted-foreground">
                                                 {Math.round(pct * 100)}%
+                                            </div>
+
+                                            {/* live price + sparkline */}
+                                            <div className="ml-2 flex items-center gap-3">
+                                                <div className="text-xs tabular-nums">{usd(price, asset === Asset.SOL ? 3 : 2)}</div>
+                                                <div className="h-8 w-24">
+                                                    <ResponsiveContainer>
+                                                        <LineChart data={spark}>
+                                                            <XAxis dataKey="t" hide />
+                                                            <YAxis hide domain={["auto", "auto"]} />
+                                                            <Line
+                                                                type="monotone"
+                                                                dataKey={asset}    // "BTC" | "SOL" | "ETH" fields exist on each item
+                                                                stroke={meta.color}
+                                                                strokeWidth={2}
+                                                                dot={false}
+                                                                isAnimationActive
+                                                            />
+                                                        </LineChart>
+                                                    </ResponsiveContainer>
+                                                </div>
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
 
+
                         </div>
                     </div>
 
                     {/* KPIs */}
                     <div className="lg:col-span-7">
-                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {kpi.map((x) => (
+                        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {kpi.map((x) => (
                                 <div
                                     key={x.label}
                                     className={cn(
                                         "rounded-2xl border border-border/60 bg-card/60 p-5 md:p-6 transition-colors",
                                         "hover:border-primary/60",
                                         tileHover
-                                      )}                                  >
+                                    )}                                  >
                                     <div className="text-xs text-muted-foreground">{x.label}</div>
                                     <div className="mt-1 text-xl font-semibold">{x.value}</div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Live Prices Bar */}
-                        <div className="grid gap-4 sm:grid-cols-3">
-                            {([Asset.BTC, Asset.SOL, Asset.ETH] as const).map((a) => {
-                                const meta = ASSET_META[a];
-                                const price =
-                                    a === Asset.BTC ? prices.BTC : a === Asset.SOL ? prices.SOL : prices.ETH;
-                                return (
-                                    <div
-                                        key={a}
-                                        className={cn(
-                                            "group flex items-center justify-between rounded-xl border border-border/60 bg-card/50 p-3 backdrop-blur transition-colors",
-                                            tileHover
-                                        )}                                    >
-                                        <div className="flex items-center gap-2">
-                                            <AssetIcon asset={a} size={24} className="mr-1" />
-                                            <div className="text-sm font-medium">{a}</div>
-                                        </div>
-                                        <div className="text-sm tabular-nums">
-                                            {usd(price, a === Asset.SOL ? 3 : 2)}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        {/* Cumulative value by asset (clean 100% horizontal bar) */}
+                        {/* Cumulative value over time (line) */}
+                        <div className="mt-6 rounded-2xl border border-border/60 bg-muted/10 p-4 md:p-5">
+                            <div className="mb-3 flex items-center justify-between">
+                                <h3 className="text-sm font-medium">Cumulative Value (Vault)</h3>
+                                <span className="text-xs text-muted-foreground">live • random walk</span>
+                            </div>
+
+                            <div className="h-56 w-full">
+                                <ResponsiveContainer>
+                                    <LineChart data={cumSeries} margin={{ top: 8, right: 12, left: 8, bottom: 8 }}>
+                                        {/* Grid */}
+                                        <CartesianGrid
+                                            stroke="rgba(255,255,255,0.12)"   // light white grid
+                                            strokeDasharray="3 3"
+                                            vertical
+                                            horizontal
+                                        />
+                                        {/* X axis (white labels & line) */}
+                                        <XAxis
+                                            dataKey="t"
+                                            tick={{ fill: "#ffffff", fontSize: 11 }} // white ticks
+                                            tickLine={{ stroke: "#ffffff", strokeWidth: 0.8 }} // little white tick marks
+                                            axisLine={{ stroke: "#ffffff", strokeWidth: 1 }}   // white axis line
+                                            minTickGap={24}
+                                        />
+                                        {/* Y axis (white labels & line) */}
+                                        <YAxis
+                                            tickFormatter={(v) => usd(v, 0)}
+                                            tick={{ fill: "#ffffff", fontSize: 11 }} // white ticks
+                                            tickLine={{ stroke: "#ffffff", strokeWidth: 0.8 }}
+                                            axisLine={{ stroke: "#ffffff", strokeWidth: 1 }}
+                                            width={72}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: "hsl(var(--card))",
+                                                border: "1px solid hsl(var(--border))",
+                                                borderRadius: 12,
+                                            }}
+                                            formatter={(v: number) => [usd(v, 0), "Vault"]}
+                                            labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                                        />
+                                        {/* GREEN line */}
+                                        <Line
+                                            type="monotone"
+                                            dataKey="total"
+                                            stroke="rgb(34,197,94)"     // emerald-500 green
+                                            strokeWidth={2.5}
+                                            dot={false}
+                                            activeDot={{ r: 4, fill: "rgb(34,197,94)" }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+
+                            </div>
                         </div>
+
+
+
 
 
                         {/* Small stats strip */}
