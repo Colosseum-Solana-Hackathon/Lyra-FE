@@ -1,5 +1,25 @@
 // lib/api.ts
 
+export type BasicJupiterTokensResponse = {
+  data: BasicJupiterToken[];
+  meta: {
+    count: number;
+    symbols: string[];
+  };
+};
+export type BasicJupiterToken = {
+  symbol: string;
+  name: string;
+  address: string;
+  icon?: string;
+  network: string;
+  archived: boolean;
+  badge?: string;
+  decimals: number;
+  priceUsd?: number;
+};
+
+
 export type Env = "development" | "staging" | "production";
 
 function getRuntimeEnv(): Env {
@@ -74,6 +94,38 @@ async function request<T>(
 }
 
 /* ---------------- Jupiter endpoints ---------------- */
+export type JupiterTokensParams = {
+  page?: number;
+  limit?: number;
+};
+
+export type JupiterToken = {
+  id: string;
+  name: string;
+  symbol: string;
+  icon?: string;
+  decimals: number;
+  isVerified?: boolean;
+  usdPrice?: number;
+  address?: string;
+  badge?: string;
+  network?: string;
+  archived?: boolean;
+};
+
+export type JupiterTokensResponse = {
+  tokens: JupiterToken[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export function getJupiterTokens(params?: JupiterTokensParams) {
+  return request<JupiterTokensResponse>("/api/jupiter/tokens", {
+    method: "GET",
+    query: params,
+  });
+}
 
 export type JupiterOrderParams = {
   inputMint: string;
@@ -91,7 +143,17 @@ export function getJupiterOrder(
 ) {
   return request<any>("/api/jupiter/order", { query: params, signal: opts?.signal });
 }
+export type BasicJupiterTokensParams = {
+  symbols?: string; // comma-separated symbols, e.g. "SOL,USDT"
+};
 
+
+export function getBasicJupiterTokens(params?: BasicJupiterTokensParams) {
+  return request<BasicJupiterTokensResponse>("/api/jupiter/tokens/basic", {
+    method: "GET",
+    query: params,
+  });
+}
 export type JupiterExecuteBody = {
   signedTransaction: string; // base64
   requestId: string;
@@ -105,5 +167,18 @@ export function postJupiterExecute(
     method: "POST",
     body: JSON.stringify(body),
     signal: opts?.signal,
+  });
+}
+
+export type JupiterTokensSearchParams = {
+  q: string;
+  page?: number;
+  limit?: number;
+};
+
+export function getJupiterTokensSearch(params: JupiterTokensSearchParams) {
+  return request<JupiterTokensResponse>("/api/jupiter/tokens/search", {
+    method: "GET",
+    query: params,
   });
 }

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X } from "lucide-react"
 import type { Token } from "@/lib/tokens"
 import { cn } from "@/lib/utils"
+import { getJupiterTokens, getJupiterTokensSearch } from "@/lib/api"
 
 type Props = {
   open: boolean
@@ -28,65 +29,56 @@ type JupToken = {
   usdPrice?: number
 }
 
-const JUP_VERIFIED_URL =
-  "https://lite-api.jup.ag/tokens/v2/toptrending/24h?limit=20"
+// const JUP_VERIFIED_URL =
+//   "https://lite-api.jup.ag/tokens/v2/toptrending/24h?limit=10"
 
 export function TokenSelectDialog({ open, onOpenChange, onSelect, tokens, spotlight = [] }: Props) {
   const [q, setQ] = React.useState("")
   const [tab, setTab] = React.useState<"active" | "archived">("active")
-const [remote, setRemote] = React.useState<Token[]>([])
- const [loading, setLoading] = React.useState(false)
- const [error, setError] = React.useState<string | null>(null)
+  const [remote, setRemote] = React.useState<Token[]>([])
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [page, setPage] = React.useState(1);
+  const [limit, setLimit] = React.useState(10);
   const source: Token[] = (tokens && tokens.length > 0) ? tokens : remote
   const list = React.useMemo(() => {
-    const pool = tab === "active" ? source.filter((t) => !t.archived) : source.filter((t) => t.archived)
-    if (!q) return pool
-    const k = q.toLowerCase()
-    return pool.filter(
-      (t) =>
-        t.symbol.toLowerCase().includes(k) || t.name.toLowerCase().includes(k) || t.address?.toLowerCase().includes(k),
-    )
-  }, [q, source, tab])
+  return tab === "active" ? source.filter((t) => !t.archived) : source.filter((t) => t.archived);
+}, [source, tab]);
 
   const spotlightTokens = source.filter((t) => spotlight.includes(t.symbol))
   React.useEffect(() => {
-    if (!open) return
-    if (tokens && tokens.length > 0) return // parent provided tokens; skip fetching
+  if (!open) return;
+  if (tokens && tokens.length > 0) return; // parent provided tokens; skip fetching
 
-    const ac = new AbortController()
-    ;(async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const res = await fetch(JUP_VERIFIED_URL, { signal: ac.signal, cache: "force-cache" })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json: JupToken[] = await res.json()
+  const ac = new AbortController();
+  (async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = q
+        ? await getJupiterTokensSearch({ q, page, limit })
+        : await getJupiterTokens({ page, limit });
+      const mapped: Token[] = data.tokens.map((t) => ({
+        symbol: t.symbol,
+        name: t.name,
+        address: t.id,
+        icon: t.icon,
+        network: t.network ?? "Solana",
+        archived: t.archived ?? false,
+        badge: t.badge ?? (t.isVerified ? "Verified" : undefined),
+        decimals: t.decimals,
+        priceUsd: t.usdPrice,
+      }));
+      setRemote(mapped);
+    } catch (e: any) {
+      if (!ac.signal.aborted) setError(e?.message ?? "Failed to load tokens");
+    } finally {
+      if (!ac.signal.aborted) setLoading(false);
+    }
+  })();
 
-        // map Jupiter → your Token
-        const mapped: Token[] = json.map((t) => ({
-          symbol: t.symbol,
-          name: t.name,
-          address: t.id,          // mint address
-          icon: t.icon,
-          network: "Solana",
-          archived: false,
-          badge: t.isVerified ? "Verified" : undefined,
-          decimals: t.decimals,
-          priceUsd: t.usdPrice,
-        }))
-        setRemote(mapped)
-      } catch (e: any) {
-        if (!ac.signal.aborted) setError(e?.message ?? "Failed to load tokens")
-      } finally {
-        if (!ac.signal.aborted) setLoading(false)
-      }
-    })()
-
-    return () => ac.abort()
-  // }, [open, tokens])
-  }, [open, tokens?.length])
-
-
+  return () => ac.abort();
+}, [open, tokens?.length, page, limit, q]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -109,9 +101,10 @@ const [remote, setRemote] = React.useState<Token[]>([])
             <div className="flex flex-wrap gap-2">
               {spotlightTokens.map((t) => (
                 <button
-                type="button"
+                  type="button"
                   // key={t.symbol}
                   key={`${t.symbol}-${t.address}`}
+
                   onClick={() => onSelect(t)}
                   className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 hover:bg-accent"
                 >
@@ -136,18 +129,53 @@ const [remote, setRemote] = React.useState<Token[]>([])
           {/* <TabsContent value="active" className="mt-4">
             <TokenList items={list} onSelect={onSelect} />
           </TabsContent> */}
-            <TabsContent value="active" className="mt-4">
-    <TokenList items={list} onSelect={onSelect} loading={loading} error={error} />
-  </TabsContent>
+          <TabsContent value="active" className="mt-4">
+            <TokenList items={list} onSelect={onSelect} loading={loading} error={error} />
+          </TabsContent>
           {/* <TabsContent value="archived" className="mt-4">
             <TokenList items={list} onSelect={onSelect} emptyHint="No archived tokens match." />
           </TabsContent> */}
           <TabsContent value="archived" className="mt-4">
-    <TokenList items={list} onSelect={onSelect} emptyHint="No archived tokens match." loading={loading} error={error} />
-  </TabsContent>
+            <TokenList items={list} onSelect={onSelect} emptyHint="No archived tokens match." loading={loading} error={error} />
+          </TabsContent>
 
         </Tabs>
-
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Tokens per page:</span>
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1); // Reset to first page when limit changes
+              }}
+              className="rounded border border-border/60 bg-card px-2 py-1 text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1 || loading}
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-muted-foreground">Page {page}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={remote.length < limit || loading}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
         <div className="flex items-center justify-between border-t border-border/60 px-4 py-3">
           <div className="text-xs text-muted-foreground">Manage token lists in settings</div>
           <Button variant="link" className="px-0">
@@ -169,17 +197,17 @@ function TokenList({
   items: Token[]
   onSelect: (t: Token) => void
   emptyHint?: string,
-  loading?:boolean,
-  error?: string|null,
-  decimals?: number         
-  priceUsd?: number         
+  loading?: boolean,
+  error?: string | null,
+  decimals?: number
+  priceUsd?: number
 }) {
   return (
     <ScrollArea className="h-[320px] rounded-lg border border-border/60">
       <ul className="divide-y divide-border/60">
         {/* {items.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">{emptyHint}</li>}
         {items.map((t) => ( */}
-         {loading && <li className="p-6 text-center text-sm text-muted-foreground">Loading tokens…</li>}
+        {loading && <li className="p-6 text-center text-sm text-muted-foreground">Loading tokens…</li>}
         {!!error && <li className="p-6 text-center text-sm text-red-500">Error: {error}</li>}
         {!loading && !error && items.length === 0 && (
           <li className="p-6 text-center text-sm text-muted-foreground">{emptyHint}</li>
@@ -188,7 +216,7 @@ function TokenList({
           // <li key={t.symbol}>
           <li key={`${t.symbol}-${t.address}`}>
             <button
-            type="button"
+              type="button"
               onClick={() => onSelect(t)}
               className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-accent"
             >
