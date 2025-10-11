@@ -61,7 +61,7 @@ export function TokenSelectDialog({ open, onOpenChange, onSelect, tokens, spotli
       const mapped: Token[] = data.tokens.map((t) => ({
         symbol: t.symbol,
         name: t.name,
-        address: t.id,
+        address: t.id ?? t.address ?? "",   // <-- IMPORTANT
         icon: t.icon,
         network: t.network ?? "Solana",
         archived: t.archived ?? false,
@@ -105,7 +105,12 @@ export function TokenSelectDialog({ open, onOpenChange, onSelect, tokens, spotli
                   // key={t.symbol}
                   key={`${t.symbol}-${t.address}`}
 
-                  onClick={() => onSelect(t)}
+                  // onClick={() => onSelect(t)}
+                   onClick={() => {
+                     onSelect(t);
+                     // parent already closes; this guards against future reuse where parent forgets
+                     onOpenChange(false);
+                   }}
                   className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 hover:bg-accent"
                 >
                   <img alt={t.name} src={t.icon || "/placeholder.svg"} className="size-5 rounded-full" />

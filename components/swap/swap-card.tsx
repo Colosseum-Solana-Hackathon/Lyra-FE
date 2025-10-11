@@ -28,9 +28,17 @@ const WSOL = "So11111111111111111111111111111111111111112";
 const LAST_FROM_KEY = "swap:lastFromSymbol";
 const LAST_TO_KEY = "swap:lastToSymbol";
 const spotlightTokens = ["SOL", "USDC", "USDT", "JUP"];
+
 function mintFor(t: Token) {
-  if (!t.address || t.symbol.toUpperCase() === "SOL") return WSOL;
-  return t.address;
+  // Only SOL maps to WSOL. Every other token must have a valid SPL mint address.
+  if (t.symbol?.toUpperCase() === "SOL") return WSOL;
+  return t.address ?? "";
+}
+
+function hasMint(t: Token) {
+  if (!t) return false;
+  if (t.symbol?.toUpperCase() === "SOL") return true;  // WSOL
+  return !!t.address;                                   // SPL token must have address
 }
 
 function toAtomic(amount: string, decimals?: number) {
@@ -45,6 +53,23 @@ function fromAtomic(amount: string | number, decimals?: number) {
   const v = typeof amount === "string" ? Number(amount) : amount;
   if (!isFinite(v)) return "0";
   return (v / 10 ** d).toString();
+}
+// helpers to safely parse/format numbers for quote UI
+function toNum(v: string) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function pretty(n: number | null, maxFrac = 6) {
+  if (n === null) return "—";
+  return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
+}
+function computeRate(amountIn: string, amountOut: string) {
+  const aIn = toNum(amountIn);
+  const aOut = toNum(amountOut);
+  if (aIn && aIn > 0 && aOut && aOut > 0) {
+    return aOut / aIn;
+  }
+  return null;
 }
 
 // const JUP_VERIFIED_URL = "https://lite-api.jup.ag/tokens/v2/tag?query=verified";
@@ -110,8 +135,12 @@ export function SwapCard() {
         const defaultTo = bySym("USDT") ?? mapped.find((x) => x.symbol.toUpperCase() !== defaultFrom.symbol.toUpperCase()) ?? mapped[1] ?? PLACEHOLDER;
 
         const fromToken = bySym(savedFromSymbol) ?? defaultFrom;
-        const toToken = bySym(savedToSymbol) ?? (fromToken.symbol.toUpperCase() === defaultTo.symbol.toUpperCase() ? mapped[1] ?? defaultTo : defaultTo);
-
+        // prevent equality (e.g. both SOL) if user had weird localStorage or list changes
+        const _to = bySym(savedToSymbol) ?? defaultTo;
+        const toToken =
+          _to.symbol.toUpperCase() === fromToken.symbol.toUpperCase()
+            ? (mapped.find((x) => x.symbol.toUpperCase() !== fromToken.symbol.toUpperCase()) ?? defaultTo)
+            : _to;
         setFromToken(fromToken);
         setToToken(toToken);
       } catch (e: any) {
@@ -205,75 +234,118 @@ export function SwapCard() {
   //   }
   //   fetchBalances();
   // }, [publicKey, connected, connection, fromToken, amountFrom]);
-useEffect(() => {
-  async function fetchBalances() {
-    if (!publicKey || !connected) {
-      setFromBalance(null);
-      setToBalance(null);
-      setHasSufficientBalance(false);
-      return;
-    }
-    try {
-      // Fetch balance for fromToken
-      let fromBalanceValue: number | null = null;
-      if (fromToken.address && (fromToken.symbol.toUpperCase() === "SOL" || mintFor(fromToken) === WSOL)) {
-        const balanceLamports = await connection.getBalance(publicKey);
-        fromBalanceValue = balanceLamports / 1e9;
-      } else if (fromToken.address) {
-        try {
-          const tokenMint = new PublicKey(mintFor(fromToken));
-          const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
-            mint: tokenMint,
-          });
-          fromBalanceValue = tokenAccounts.value.reduce(
-            (sum, acc) => sum + acc.account.data.parsed.info.tokenAmount.uiAmount,
-            0
-          );
-        } catch (err) {
-          console.warn(`No token account found for ${fromToken.symbol}:`, err);
-          fromBalanceValue = 0;
-        }
+  useEffect(() => {
+    async function fetchBalances() {
+      if (!publicKey || !connected) {
+        setFromBalance(null);
+        setToBalance(null);
+        setHasSufficientBalance(false);
+        return;
       }
-      setFromBalance(fromBalanceValue);
-
-      // Check if balance is sufficient
-      const amount = Number(amountFrom);
-      if (isFinite(amount) && amount > 0) {
-        setHasSufficientBalance(fromBalanceValue !== null && fromBalanceValue >= amount);
-      } else {
+  
+      try {
+        // ---------- FROM balance ----------
+        let fromBalanceValue: number | null = null;
+        if (hasMint(fromToken)) {
+          if (fromToken.symbol.toUpperCase() === "SOL") {
+            const balanceLamports = await connection.getBalance(publicKey);
+            fromBalanceValue = balanceLamports / 1e9;
+          } else {
+            try {
+              const tokenMint = new PublicKey(mintFor(fromToken));
+              const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                mint: tokenMint,
+              });
+              fromBalanceValue = tokenAccounts.value.reduce(
+                (sum, acc) => sum + acc.account.data.parsed.info.tokenAmount.uiAmount,
+                0
+              );
+            } catch {
+              // No ATA = 0 balance (expected)
+              fromBalanceValue = 0;
+            }
+          }
+        } else {
+          // Non-SOL without a mint address (unsupported) → show no balance
+          fromBalanceValue = null;
+        }
+        setFromBalance(fromBalanceValue);
+  
+        // Sufficient balance check for button gating
+        const amount = Number(amountFrom);
+        if (isFinite(amount) && amount > 0) {
+          setHasSufficientBalance(fromBalanceValue !== null && fromBalanceValue >= amount);
+        } else {
+          setHasSufficientBalance(false);
+        }
+  
+        // ---------- TO balance ----------
+        let toBalanceValue: number | null = null;
+        if (hasMint(toToken)) {
+          if (toToken.symbol.toUpperCase() === "SOL") {
+            const balanceLamports = await connection.getBalance(publicKey);
+            toBalanceValue = balanceLamports / 1e9;
+          } else {
+            try {
+              const tokenMint = new PublicKey(mintFor(toToken));
+              const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                mint: tokenMint,
+              });
+              toBalanceValue = tokenAccounts.value.reduce(
+                (sum, acc) => sum + acc.account.data.parsed.info.tokenAmount.uiAmount,
+                0
+              );
+            } catch {
+              toBalanceValue = 0;
+            }
+          }
+        } else {
+          toBalanceValue = null;
+        }
+        setToBalance(toBalanceValue);
+      } catch (err) {
+        console.error("Error fetching balances:", err);
+        setFromBalance(null);
+        setToBalance(null);
         setHasSufficientBalance(false);
       }
-
-      // Fetch balance for toToken
-      let toBalanceValue: number | null = null;
-      if (toToken.address && (toToken.symbol.toUpperCase() === "SOL" || mintFor(toToken) === WSOL)) {
-        const balanceLamports = await connection.getBalance(publicKey);
-        toBalanceValue = balanceLamports / 1e9;
-      } else if (toToken.address) {
-        try {
-          const tokenMint = new PublicKey(mintFor(toToken));
-          const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
-            mint: tokenMint,
-          });
-          toBalanceValue = tokenAccounts.value.reduce(
-            (sum, acc) => sum + acc.account.data.parsed.info.tokenAmount.uiAmount,
-            0
-          );
-        } catch (err) {
-          console.warn(`No token account found for ${toToken.symbol}:`, err);
-          toBalanceValue = 0;
-        }
-      }
-      setToBalance(toBalanceValue);
-    } catch (err) {
-      console.error("Error fetching balances:", err);
-      setFromBalance(null);
-      setToBalance(null);
-      setHasSufficientBalance(false);
     }
+  
+    fetchBalances();
+  }, [publicKey, connected, connection, fromToken, toToken, amountFrom]);
+  
+  function persistSymbol(side: "from" | "to", symbol: string) {
+    localStorage.setItem(side === "from" ? LAST_FROM_KEY : LAST_TO_KEY, symbol);
   }
-  fetchBalances();
-}, [publicKey, connected, connection, fromToken, toToken, amountFrom]);
+
+  function applySelection(side: "from" | "to", token: Token) {
+    // If selecting same symbol as the other side, auto-swap sides to keep them different.
+    if (side === "from") {
+      if (token.symbol.toUpperCase() === toToken.symbol.toUpperCase()) {
+        setToToken(fromToken);
+        persistSymbol("to", fromToken.symbol);
+      }
+      setFromToken(token);
+      persistSymbol("from", token.symbol);
+    } else {
+      if (token.symbol.toUpperCase() === fromToken.symbol.toUpperCase()) {
+        setFromToken(toToken);
+        persistSymbol("from", toToken.symbol);
+      }
+      setToToken(token);
+      persistSymbol("to", token.symbol);
+    }
+    // keep the small cache in sync (avoid duplicates by address if available, fallback to symbol)
+    setBasicTokens((prev) => {
+      const exists = prev.some(
+        (t) =>
+          (t.address && token.address && t.address === token.address) ||
+          t.symbol.toUpperCase() === token.symbol.toUpperCase()
+      );
+      return exists ? prev : [...prev, token];
+    });
+  }
+
   // Fetch quote and store requestId
   // useEffect(() => {
   //   setRequestId(null);
@@ -331,69 +403,75 @@ useEffect(() => {
 
   //   return () => controller.abort();
   // }, [amountFrom, fromToken, toToken]);
-useEffect(() => {
-  setRequestId(null);
-  setSignedTransaction(null);
-  setQuoteErr(null);
-  setAmountTo("");
+  useEffect(() => {
+    setRequestId(null);
+    setSignedTransaction(null);
+    setAmountTo("");
 
-  if (!amountFrom || !fromToken.address || !toToken.address || fromToken === PLACEHOLDER || toToken === PLACEHOLDER) {
-    setQuoteErr("Please select valid tokens");
-    return;
-  }
-
-  const inputMint = mintFor(fromToken);
-  const outputMint = mintFor(toToken);
-  const atomic = toAtomic(amountFrom, fromToken.decimals);
-  if (!atomic) {
-    setQuoteErr("Invalid amount entered");
-    return;
-  }
-
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      setQuoteLoading(true);
+    // If no amount, do nothing (no error yet)
+    if (!amountFrom) {
       setQuoteErr(null);
-
-      const data = await getJupiterOrder(
-        {
-          inputMint,
-          outputMint,
-          amount: atomic,
-        },
-        { signal: controller.signal }
-      );
-
-      const outAmount =
-        data?.outAmount ??
-        data?.outAmountMin ??
-        data?.routePlan?.[0]?.swapInfo?.outAmount ??
-        null;
-
-      if (!outAmount) {
-        setQuoteErr("No route found");
-        setAmountTo("");
-        return;
-      }
-
-      setAmountTo(fromAtomic(outAmount, toToken.decimals));
-      setRequestId(data.requestId);
-      console.log("Quote fetched:", { requestId: data.requestId, inputMint, outputMint, amount: atomic });
-    } catch (e: any) {
-      if (!controller.signal.aborted) {
-        setQuoteErr(e?.message ?? "Failed to fetch quote");
-        setAmountTo("");
-        console.error("Quote fetch error:", e?.message, { inputMint, outputMint, amount: atomic });
-      }
-    } finally {
-      if (!controller.signal.aborted) setQuoteLoading(false);
+      return;
     }
-  })();
+    // If tokens not ready, show a precise error only when an amount exists
+    if (!hasMint(fromToken) || !hasMint(toToken) || fromToken === PLACEHOLDER || toToken === PLACEHOLDER) {
+      setQuoteErr("Please select valid tokens");
+      return;
+    }
+    
 
-  return () => controller.abort();
-}, [amountFrom, fromToken, toToken]);
+    const inputMint = mintFor(fromToken);
+    const outputMint = mintFor(toToken);
+    const atomic = toAtomic(amountFrom, fromToken.decimals);
+    if (!atomic) {
+      setQuoteErr("Invalid amount entered");
+      return;
+    }
+
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        setQuoteLoading(true);
+        setQuoteErr(null);
+
+        const data = await getJupiterOrder(
+          {
+            inputMint,
+            outputMint,
+            amount: atomic,
+          },
+          { signal: controller.signal }
+        );
+
+        const outAmount =
+          data?.outAmount ??
+          data?.outAmountMin ??
+          data?.routePlan?.[0]?.swapInfo?.outAmount ??
+          null;
+
+        if (!outAmount) {
+          setQuoteErr("No route found");
+          setAmountTo("");
+          return;
+        }
+
+        setAmountTo(fromAtomic(outAmount, toToken.decimals));
+        setRequestId(data.requestId);
+        console.log("Quote fetched:", { requestId: data.requestId, inputMint, outputMint, amount: atomic });
+      } catch (e: any) {
+        if (!controller.signal.aborted) {
+          setQuoteErr(e?.message ?? "Failed to fetch quote");
+          setAmountTo("");
+          console.error("Quote fetch error:", e?.message, { inputMint, outputMint, amount: atomic });
+        }
+      } finally {
+        if (!controller.signal.aborted) setQuoteLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [amountFrom, fromToken, toToken]);
   async function handleSwap() {
     if (!connected || !publicKey || !signTransaction) {
       alert("Please connect your wallet to proceed.");
@@ -467,8 +545,10 @@ useEffect(() => {
     const a = fromToken;
     setFromToken(toToken);
     setToToken(a);
-    setAmountFrom(amountTo);
-    setAmountTo(amountFrom);
+    if (amountFrom || amountTo) {
+      setAmountFrom(amountTo);
+      setAmountTo(amountFrom);
+    }
   };
 
   const balanceHint = (t: Token, bal: number | null) => {
@@ -476,6 +556,8 @@ useEffect(() => {
     if (bal === null) return "—";
     return `Balance: ${bal.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${t.symbol}`;
   };
+  const hasQuote = !!requestId && !!amountTo && !quoteErr;
+  const canSwap = !swapLoading && connected && hasQuote && hasSufficientBalance;
 
   return (
 
@@ -547,21 +629,11 @@ useEffect(() => {
           open={!!openFor}
           onOpenChange={(open) => !open && setOpenFor(null)}
           onSelect={(token) => {
-            if (openFor === "from") {
-              setFromToken(token);
-              localStorage.setItem(LAST_FROM_KEY, token.symbol);
-              if (!basicTokens.some((t) => t.symbol.toUpperCase() === token.symbol.toUpperCase())) {
-                setBasicTokens((prev) => [...prev, token]);
-              }
-            } else if (openFor === "to") {
-              setToToken(token);
-              localStorage.setItem(LAST_TO_KEY, token.symbol);
-              if (!basicTokens.some((t) => t.symbol.toUpperCase() === token.symbol.toUpperCase())) {
-                setBasicTokens((prev) => [...prev, token]);
-              }
-            }
+            if (!openFor) return;
+            applySelection(openFor, token);
             setOpenFor(null);
           }}
+
           spotlight={spotlightTokens}
         />
         <div className="rounded-xl border border-border/60 bg-muted/10 p-4 lg:p-5 transition-all duration-200 hover:border-primary/70 focus-within:border-primary">
@@ -591,16 +663,39 @@ useEffect(() => {
               />
             </div>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground lg:text-base">
+          {/* <p className="mt-3 text-sm text-muted-foreground lg:text-base">
             {quoteLoading
               ? "Fetching best route…"
               : quoteErr
                 ? `Quote error: ${quoteErr}`
                 : balanceHint(toToken, toBalance)}
-          </p>
+          </p> */}
+          {(() => {
+            const rate = computeRate(amountFrom, amountTo);
+            return (
+              <p className="mt-3 text-sm text-muted-foreground lg:text-base">
+                {quoteLoading
+                  ? "Fetching best route…"
+                  : quoteErr
+                    ? `Quote error: ${quoteErr}`
+                    : requestId && amountTo
+                      ? (
+                        <>
+                          Est. receive: <span className="font-medium">{pretty(toNum(amountTo))} {toToken.symbol}</span>
+                          {rate && (
+                            <> • Rate: 1 {fromToken.symbol} ≈ {pretty(rate, 8)} {toToken.symbol}</>
+                          )}
+                        </>
+                      )
+                      : balanceHint(toToken, toBalance)
+                }
+              </p>
+            );
+          })()}
+
         </div>
 
-        {!connected ? (
+        {/* {!connected ? (
           <WalletMultiButton className="w-full btn-primary-lyra text-base lg:text-lg py-6" />
         ) : (
           <Button
@@ -613,7 +708,29 @@ useEffect(() => {
         )}
         {swapError && (
           <p className="mt-2 text-sm text-red-500 text-center">{swapError}</p>
+        )} */}
+        {!connected ? (
+          <WalletMultiButton className="w-full btn-primary-lyra text-base lg:text-lg py-6" />
+        ) : (
+          <>
+            <Button
+              className="w-full btn-primary-lyra text-base lg:text-lg py-6"
+              onClick={handleSwap}
+              disabled={!canSwap}
+            >
+              {swapLoading ? "Swapping..." : "Swap"}
+            </Button>
+            {!hasSufficientBalance && hasQuote && (
+              <p className="mt-2 text-xs text-muted-foreground text-center">
+                You have a quote, but your {fromToken.symbol} balance is insufficient.
+              </p>
+            )}
+          </>
         )}
+        {swapError && (
+          <p className="mt-2 text-sm text-red-500 text-center">{swapError}</p>
+        )}
+
       </CardContent>
     </Card>
   );
