@@ -77,7 +77,7 @@ function computeRate(amountIn: string, amountOut: string) {
 export function SwapCard() {
   const PLACEHOLDER: Token = {
     symbol: "—",
-    name: "Loading…",
+    name: "Loading…We Are In Development Phase Right Now, some features may not be available yet.",
     address: "",
     icon: "/placeholder.svg",
     network: "Solana",
