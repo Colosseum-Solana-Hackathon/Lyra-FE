@@ -20,17 +20,15 @@ export type BasicJupiterToken = {
 };
 
 
-export type Env = "development" | "staging" | "production";
+export type Env = "development" | "production";
 
 function getRuntimeEnv(): Env {
   const explicit = (process.env.NEXT_PUBLIC_ENV || "").toLowerCase();
   if (explicit.startsWith("prod")) return "production";
-  if (explicit.startsWith("stag")) return "staging";
 
   // Fallbacks based on common Next/Vercel envs
-  const ve = (process.env.VERCEL_ENV || "").toLowerCase(); // "production" | "preview" | "development"
+  const ve = (process.env.VERCEL_ENV || "").toLowerCase();
   if (ve === "production") return "production";
-  if (ve === "preview") return "staging";
 
   return "development";
 }
@@ -43,7 +41,7 @@ function stripTrailingSlash(u: string) {
  * Resolve the API base URL depending on env.
  * Priority:
  *  1) NEXT_PUBLIC_API_BASE_URL (always wins if set)
- *  2) Staging/Prod specific vars
+ *  2) Production API URL (if production env)
  *  3) Dev default: http://localhost:8000
  */
 export function getApiBaseUrl() {
@@ -51,9 +49,6 @@ export function getApiBaseUrl() {
   if (forced) return stripTrailingSlash(forced);
 
   const env = getRuntimeEnv();
-  if (env === "staging" && process.env.NEXT_PUBLIC_STAGING_API_BASE_URL) {
-    return stripTrailingSlash(process.env.NEXT_PUBLIC_STAGING_API_BASE_URL);
-  }
   if (env === "production" && process.env.NEXT_PUBLIC_PROD_API_BASE_URL) {
     return stripTrailingSlash(process.env.NEXT_PUBLIC_PROD_API_BASE_URL);
   }

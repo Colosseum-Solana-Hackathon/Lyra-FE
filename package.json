@@ -1,12 +1,14 @@
 {
-  "name": "my-v0-project",
+  "name": "lyra-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "type-check": "tsc --noEmit",
+    "build:production": "NODE_ENV=production next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
