@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress"; // if you don't have one, replace with a div + w-[%]
 import { cn } from "@/lib/utils";
 import { ArrowUpRight } from "lucide-react";
+import { DepositModal } from "./deposit-modal";
 import {
     LineChart,
     Line,
@@ -215,6 +216,7 @@ function usd(n: number | undefined, digits = 2) {
 
 export function VaultTile() {
     const prices = useLivePrices();
+    const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     // keep a small rolling history for sparklines
     const [hist, setHist] = useState<Array<{ t: number; BTC: number; SOL: number; ETH: number }>>([]);
 
@@ -266,7 +268,8 @@ export function VaultTile() {
 
 
     return (
-        <Card className="border-border/60 bg-card/95 shadow-xl shadow-primary/5 transition-all duration-200 hover:scale-[1.005] hover:ring-1 hover:ring-primary/40 hover:shadow-[0_0_44px_hsl(var(--primary)/0.20)]">
+        <>
+            <Card className="border-border/60 bg-card/95 shadow-xl shadow-primary/5 transition-all duration-200 hover:scale-[1.005] hover:ring-1 hover:ring-primary/40 hover:shadow-[0_0_44px_hsl(var(--primary)/0.20)]">
 
             <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -276,7 +279,12 @@ export function VaultTile() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button className="btn-primary-lyra px-5 py-2.5">Deposit</Button>
+                    <Button 
+                        className="btn-primary-lyra px-5 py-2.5"
+                        onClick={() => setIsDepositModalOpen(true)}
+                    >
+                        Deposit
+                    </Button>
                     <Button variant="outline" className="px-4">
                         Details <ArrowUpRight className="ml-1 size-4" />
                     </Button>
@@ -475,6 +483,12 @@ export function VaultTile() {
                 </div>
             </CardContent>
         </Card>
+        
+            <DepositModal 
+                isOpen={isDepositModalOpen} 
+                onClose={() => setIsDepositModalOpen(false)} 
+            />
+        </>
     );
 }
 
