@@ -96,8 +96,8 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
   if (isWidgetVisible) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <Card className="w-full max-w-5xl h-[700px] border-border/50 bg-card/95 backdrop-blur-sm overflow-hidden">
-          <CardHeader className="pb-4 border-b border-border/20">
+        <Card className="w-full max-w-5xl max-h-[90vh] border-border/50 bg-card/95 backdrop-blur-sm overflow-hidden flex flex-col">
+          <CardHeader className="pb-4 border-b border-border/20 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg border border-white/20">
@@ -120,10 +120,10 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
             </div>
           </CardHeader>
 
-          <CardContent className="pt-6 h-[calc(100%-120px)] relative">
+          <CardContent className="pt-6 flex-1 relative overflow-auto">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-lg" />
-            <div className="relative z-10 h-full flex items-center justify-center">
-              <div className="w-full h-full min-h-[500px]">
+            <div className="relative z-10 h-full flex items-center justify-center min-h-[500px]">
+              <div className="w-full h-full">
                 <MoonPayBuyWidget
                   variant="embedded"
                   baseCurrencyCode="usd"
