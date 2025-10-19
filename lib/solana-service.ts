@@ -12,6 +12,9 @@ import {
 import { useWallet } from "@solana/wallet-adapter-react";
 import { solanaApi, DepositResult, VaultInfo, UserPosition, WithdrawResult, TransactionStatus, VaultEvent } from "./solana-api";
 
+// Re-export types for external use
+export type { DepositResult, VaultInfo, UserPosition, WithdrawResult, TransactionStatus, VaultEvent };
+
 // ETF Vault Smart Contract Configuration
 // These would be replaced with actual deployed program addresses
 const ETF_PROGRAM_ID = new PublicKey("11111111111111111111111111111111"); // Your deployed program ID
