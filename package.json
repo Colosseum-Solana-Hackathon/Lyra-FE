@@ -11,6 +11,7 @@
     "build:production": "NODE_ENV=production next build"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
     "@hookform/resolvers": "^3.10.0",
     "@jup-ag/api": "^6.0.44",
     "@jup-ag/react-hook": "^6.2.0",
@@ -50,6 +51,7 @@
     "@solana/web3.js": "^1.98.4",
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
+    "bn.js": "^5.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -78,6 +80,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
+    "@types/bn.js": "^5.2.0",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",

@@ -3,7 +3,8 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { solanaService, DepositResult } from "@/lib/solana-service";
+import { solanaService } from "@/lib/solana-service";
+import { DepositResult } from "@/lib/solana-api";
 
 export interface UseSolanaDepositReturn {
   deposit: (amount: number) => Promise<DepositResult>;
@@ -60,8 +61,8 @@ export function useSolanaDeposit(): UseSolanaDepositReturn {
         signTransaction
       );
 
-      if (result.success && result.transactionSignature) {
-        setLastTransaction(result.transactionSignature);
+      if (result.success && result.txHash) {
+        setLastTransaction(result.txHash);
       } else {
         setError(result.error || "Deposit failed");
       }

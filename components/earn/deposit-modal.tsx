@@ -148,10 +148,10 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
       const result = await deposit(solAmount)
       
       if (result.success) {
-        setTxHash(result.transactionSignature || "")
+        setTxHash(result.txHash || "")
         setSharesReceived(result.sharesReceived || 0)
-      setStep("success")
-    } else {
+        setStep("success")
+      } else {
         setStep("error")
       }
     } catch (err: any) {
