@@ -28,35 +28,55 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
 
   useEffect(() => {
     setIsClient(true)
+    // Auto-trigger the purchase flow when component mounts
+    console.log('MoonPay: Component mounted, auto-starting purchase')
+    handleStartPurchase()
   }, [])
 
   const handleStartPurchase = () => {
+    console.log('MoonPay: Starting purchase flow')
+    
+    // Lock page scroll when modal opens
+    document.body.style.overflow = 'hidden'
+    
+    // Show loading state first
     setIsLoading(true)
-    // Simulate loading time for widget initialization
+    setIsWidgetVisible(false)
+    console.log('MoonPay: Set loading true, widget visible false')
+    
+    // Wait for iframe to load completely before showing
     setTimeout(() => {
-      setIsLoading(false)
-      setIsWidgetVisible(true)
-      
-      // Check for "Coming soon" message after a delay
-      setTimeout(() => {
-        // This is a simple way to detect the "Coming soon" state
-        // In a real implementation, you might want to listen for specific events
-        const moonpayContent = document.querySelector('[data-testid="moonpay-widget"]') || 
-                              document.querySelector('.moonpay-widget') ||
-                              document.querySelector('iframe[src*="moonpay"]')
-        
-        if (moonpayContent) {
-          const text = moonpayContent.textContent || ''
-          if (text.includes('Coming soon') || text.includes('not available') || text.includes('region')) {
-            handleWidgetError()
+      // Check if MoonPay iframe is loaded
+      const checkIframeLoaded = () => {
+        const iframe = document.querySelector('iframe[src*="moonpay"]')
+        if (iframe) {
+          console.log('MoonPay: Iframe found, checking if loaded')
+          iframe.onload = () => {
+            console.log('MoonPay: Iframe loaded successfully')
+            setIsLoading(false)
+            setIsWidgetVisible(true)
           }
+          // Fallback if onload doesn't fire
+          setTimeout(() => {
+            console.log('MoonPay: Fallback - showing widget after timeout')
+            setIsLoading(false)
+            setIsWidgetVisible(true)
+          }, 2000)
+        } else {
+          console.log('MoonPay: Iframe not found yet, showing widget anyway')
+          setIsLoading(false)
+          setIsWidgetVisible(true)
         }
-      }, 3000)
-    }, 1000)
+      }
+      
+      checkIframeLoaded()
+    }, 2000) // Initial delay to let iframe start loading
   }
 
   const handleWidgetClose = () => {
     setIsWidgetVisible(false)
+    // Restore page scroll when modal closes
+    document.body.style.overflow = 'unset'
   }
 
   const handleTransactionComplete = async () => {
@@ -73,6 +93,8 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
     setShowFallback(false)
     setIsWidgetVisible(false)
     setIsLoading(false)
+    // Restore page scroll when retrying
+    document.body.style.overflow = 'unset'
   }
 
   if (!isClient) {
@@ -89,41 +111,90 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
     )
   }
 
+  // Show loading modal when loading but widget not visible yet
+  if (isLoading && !isWidgetVisible) {
+    return (
+      <>
+        {/* Blur background */}
+        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md" />
+        
+        {/* Loading modal */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-card/98 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-8">
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                  <Loader2 className="h-8 w-8 animate-spin text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
+                    Loading MoonPay
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Preparing your crypto purchase experience...
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   if (showFallback) {
     return <MoonPayFallback onClose={onClose} onRetry={handleRetry} />
   }
 
   if (isWidgetVisible) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <Card className="w-full max-w-5xl max-h-[90vh] border-border/50 bg-card/95 backdrop-blur-sm overflow-hidden flex flex-col">
-          <CardHeader className="pb-4 border-b border-border/20 flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg border border-white/20">
-                  <MoonPayLogo size="md" />
+      <>
+        {/* Blur background */}
+        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md" />
+        
+        {/* Main modal */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-6xl h-[90vh] bg-card/98 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Beautiful header */}
+            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-border/20 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                    <MoonPayLogo size="md" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+                      MoonPay
+                    </h2>
+                    <p className="text-sm text-muted-foreground">Buy crypto with your credit card</p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl font-bold">MoonPay</CardTitle>
-                  <CardDescription className="text-sm">Buy crypto with your credit card</CardDescription>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleWidgetClose}
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-full w-10 h-10"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleWidgetClose}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
             </div>
-          </CardHeader>
 
-          <CardContent className="pt-6 flex-1 relative overflow-auto">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-lg" />
-            <div className="relative z-10 h-full flex items-center justify-center min-h-[500px]">
-              <div className="w-full h-full">
+            {/* MoonPay widget container */}
+            <div className="flex-1 overflow-hidden flex justify-end pr-8">
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm z-20">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold">Loading MoonPay</h3>
+                    <p className="text-muted-foreground">Preparing your crypto purchase experience...</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="w-full h-full max-w-3xl">
                 <MoonPayBuyWidget
                   variant="embedded"
                   baseCurrencyCode="usd"
@@ -135,9 +206,9 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </>
     )
   }
 

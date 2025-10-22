@@ -102,7 +102,9 @@ export function OnrampTabs({
                     <Button
                       className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
                       onClick={() => {
+                        console.log('Onramp: Button clicked for', p.name)
                         if (p.name === "Moonpay") {
+                          console.log('Onramp: Setting showMoonPayWidget to true')
                           setShowMoonPayWidget(true)
                         } else {
                           onContinue(p)
@@ -122,7 +124,13 @@ export function OnrampTabs({
       
       {/* MoonPay Widget Modal */}
       {showMoonPayWidget && (
-        <MoonPayWidget onClose={() => setShowMoonPayWidget(false)} />
+        <>
+          {console.log('Onramp: Rendering MoonPay widget modal')}
+          <MoonPayWidget onClose={() => {
+            console.log('Onramp: Closing MoonPay widget')
+            setShowMoonPayWidget(false)
+          }} />
+        </>
       )}
     </Card>
   )

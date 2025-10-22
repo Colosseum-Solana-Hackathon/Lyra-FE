@@ -34,11 +34,11 @@ export function MoonPayFallback({ onClose, onRetry }: MoonPayFallbackProps) {
                 <Globe className="h-10 w-10 text-purple-400" />
               </div>
               <h3 className="text-3xl font-bold mb-3 bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                Coming Soon to Your Region
+                MoonPay Unavailable
               </h3>
               <p className="text-muted-foreground text-lg leading-relaxed">
-                Our team is working diligently to expand our reach, with the goal of supporting your region in the near future. 
-                Once we're ready to roll, we'll make sure to drop you a note.
+                MoonPay is currently blocked by your browser's security settings or network configuration. 
+                This is common in development environments. Try using a different browser or network.
               </p>
             </div>
 

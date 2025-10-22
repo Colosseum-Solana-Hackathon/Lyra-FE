@@ -13,20 +13,20 @@ export default function Footer() {
                         <img src="/images/lyra-logo.png" alt="Lyra logo" className="h-10 w-auto" />
                         <div>
                             <h3 className="text-xl font-semibold text-primary">Lyra</h3>
-                            <p className="text-xs text-muted-foreground">A simple onramp and swap interface built for Solana.</p>
+                            <p className="text-xs text-muted-foreground">Break Free from Tradfi.</p>
                         </div>
                     </div>
 
                     <p className="text-sm text-muted-foreground/90 max-w-sm">
-                        Build, learn, and transact on Solana. Lyra provides an easy way to connect wallets, buy crypto, and swap tokens — powered by community tools and open integrations.
+                        Transact on Solana. Lyra provides an easy way to connect wallets, buy crypto, swap tokens, and invest in ETF's — powered by community tools and open integrations.
                     </p>
 
                     <div className="flex items-center gap-3 mt-2">
                         <a href="https://www.youtube.com/" target="_blank" rel="noreferrer" className="p-2 rounded-md hover:bg-primary/5 transition">
                             <Youtube className="h-5 w-5 text-primary" />
                         </a>
-                        <a href="https://x.com/" target="_blank" rel="noreferrer" className="p-2 rounded-md hover:bg-primary/5 transition">
-                            <img src="/images/logo-x.png" alt="Lyra logo" className="h-10 w-auto" />
+                        <a href="https://x.com/LyraMSquare" target="_blank" rel="noreferrer" className="p-2 rounded-md hover:bg-primary/5 transition">
+                            <img src="/images/logo-x.png" alt="X (Twitter)" className="h-5 w-5" style={{ filter: 'hue-rotate(120deg) saturate(1.5) brightness(1.2)' }} />
                         </a>
 
                         {/* <a href="https://reddit.com/" target="_blank" rel="noreferrer" className="p-2 rounded-md hover:bg-primary/5 transition">
@@ -94,7 +94,7 @@ export default function Footer() {
 
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <Globe className="h-4 w-4 text-primary" />
-                        <span>Available on Solana mainnet</span>
+                        <span>Available on Solana Devnet</span>
                     </div>
                 </div>
             </div>
