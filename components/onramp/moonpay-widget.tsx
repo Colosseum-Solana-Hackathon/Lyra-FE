@@ -56,7 +56,7 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
     setTimeout(() => {
       // Check if MoonPay iframe is loaded
       const checkIframeLoaded = () => {
-        const iframe = document.querySelector('iframe[src*="moonpay"]')
+        const iframe = document.querySelector('iframe[src*="moonpay"]') as HTMLIFrameElement
         if (iframe) {
           console.log('MoonPay: Iframe found, checking if loaded')
           iframe.onload = () => {
