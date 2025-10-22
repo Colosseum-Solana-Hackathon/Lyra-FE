@@ -1,0 +1,1445 @@
+{
+  "address": "FsoSA6MxmuQ6yz9ZJ9EqmizYLZq8KoVWnoudpv1Yww8u",
+  "metadata": {
+    "name": "vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "create_vault",
+      "docs": [
+        "Create a new multi-asset vault with custom composition",
+        "",
+        "This is the primary initialization instruction for creating vaults.",
+        "Each vault is a unique PDA derived from admin + name, allowing multiple",
+        "vaults per admin with different compositions.",
+        "",
+        "**Key Design Decisions:**",
+        "1. **PDA Seeds**: [b\"vault\", admin, name] - enables multiple vaults per admin",
+        "2. **Dynamic Space**: Calculated from name length and asset count at runtime",
+        "3. **Share Mint**: Each vault has unique SPL token for shares (9 decimals for precision)",
+        "4. **Asset ATAs**: Created via remaining_accounts to handle variable asset count",
+        "",
+        "**Solana Best Practices:**",
+        "- Uses init constraint for atomic account creation with rent exemption",
+        "- Vault PDA is mint authority for shares (secure share issuance)",
+        "- ATAs use canonical Associated Token Program addresses",
+        "- Validates composition (weights sum to 100) before creation",
+        "",
+        "**Parameters:**",
+        "- name: Unique identifier (max 32 bytes for space efficiency)",
+        "- assets: Vec of AssetConfig with mint, weight, and ATA placeholder",
+        "",
+        "**Remaining Accounts (passed in order):**",
+        "For each asset: [mint_account, ata_account]",
+        "- mint_account: The SPL token mint (unchecked, validated against AssetConfig)",
+        "- ata_account: Vault's ATA for this mint (mut, will be initialized)"
+      ],
+      "discriminator": [
+        29,
+        237,
+        247,
+        208,
+        193,
+        82,
+        54,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "docs": [
+            "The vault account - stores all composition and state",
+            "Uses dynamic space allocation based on name and asset count"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Admin who creates and manages the vault",
+            "Pays for account rent and has rebalance permissions"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault_token_mint",
+          "docs": [
+            "SPL token mint for vault shares",
+            "Vault PDA is mint authority (secure share minting)",
+            "9 decimals for high precision in share calculations"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "assets",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "AssetConfig"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "deposit_multi_asset",
+      "docs": [
+        "Deposit SOL into a multi-asset vault and receive proportional shares",
+        "This function handles the complete deposit flow with proper formulas",
+        "",
+        "**Parameters:**",
+        "- amount: Amount of SOL to deposit (in lamports, 9 decimals)",
+        "- name: Vault name for PDA derivation",
+        "",
+        "**Process:**",
+        "1. Convert SOL deposit amount to USD using SOL price",
+        "2. Calculate current vault TVL from existing balances",
+        "3. Calculate share price (TVL / total_shares, or $1 if first deposit)",
+        "4. Allocate SOL across vault assets based on weights",
+        "5. Execute mock swaps to achieve target allocation",
+        "6. Mint vault shares proportional to deposit value"
+      ],
+      "discriminator": [
+        174,
+        229,
+        114,
+        69,
+        44,
+        114,
+        215,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_shares_ata",
+          "docs": [
+            "User's ATA to receive vault shares"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault_token_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vault_token_mint",
+          "docs": [
+            "Vault's share token mint"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "btc_quote",
+          "docs": [
+            "Switchboard Oracle Quote for BTC/USD (only used when price_source = Switchboard)"
+          ]
+        },
+        {
+          "name": "eth_quote",
+          "docs": [
+            "Switchboard Oracle Quote for ETH/USD (only used when price_source = Switchboard)"
+          ]
+        },
+        {
+          "name": "sol_quote",
+          "docs": [
+            "Switchboard Oracle Quote for SOL/USD (only used when price_source = Switchboard)"
+          ]
+        },
+        {
+          "name": "marinade_strategy_program",
+          "docs": [
+            "Marinade Strategy program (for CPI)"
+          ]
+        },
+        {
+          "name": "marinade_program",
+          "docs": [
+            "Marinade Finance program (passed through to strategy)"
+          ]
+        },
+        {
+          "name": "marinade_state",
+          "docs": [
+            "Marinade state account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "reserve_pda",
+          "docs": [
+            "Marinade reserve PDA"
+          ],
+          "writable": true
+        },
+        {
+          "name": "msol_mint",
+          "docs": [
+            "mSOL token mint"
+          ],
+          "writable": true
+        },
+        {
+          "name": "strategy_msol_ata",
+          "docs": [
+            "Strategy's mSOL ATA (receives mSOL from staking)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "msol_mint_authority",
+          "docs": [
+            "mSOL mint authority"
+          ],
+          "writable": true
+        },
+        {
+          "name": "liq_pool_sol_leg_pda",
+          "docs": [
+            "Liquidity pool SOL leg PDA"
+          ],
+          "writable": true
+        },
+        {
+          "name": "liq_pool_msol_leg",
+          "docs": [
+            "Liquidity pool mSOL leg"
+          ],
+          "writable": true
+        },
+        {
+          "name": "liq_pool_msol_leg_authority",
+          "docs": [
+            "Liquidity pool mSOL leg authority"
+          ],
+          "writable": true
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_name",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_mock_oracle",
+      "docs": [
+        "Initialize mock price oracle for devnet testing",
+        "This allows testing with real-time market prices on devnet"
+      ],
+      "discriminator": [
+        18,
+        149,
+        36,
+        131,
+        144,
+        177,
+        67,
+        101
+      ],
+      "accounts": [
+        {
+          "name": "mock_oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  111,
+                  99,
+                  107,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "remove_strategy",
+      "docs": [
+        "Remove strategy from vault (only callable by vault authority)",
+        "This makes the vault work standalone without delegation"
+      ],
+      "discriminator": [
+        185,
+        238,
+        33,
+        91,
+        134,
+        210,
+        97,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_price_source",
+      "docs": [
+        "Set price source for vault (Switchboard or MockOracle)",
+        "Allows switching between real Switchboard feeds and mock oracle"
+      ],
+      "discriminator": [
+        57,
+        150,
+        166,
+        254,
+        90,
+        79,
+        215,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_name",
+          "type": "string"
+        },
+        {
+          "name": "price_source",
+          "type": {
+            "defined": {
+              "name": "PriceSource"
+            }
+          }
+        },
+        {
+          "name": "mock_oracle",
+          "type": {
+            "option": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_strategy",
+      "docs": [
+        "Set a strategy for the vault (only callable by vault authority)",
+        "This allows the vault to delegate asset management to a strategy"
+      ],
+      "discriminator": [
+        251,
+        41,
+        210,
+        173,
+        140,
+        96,
+        78,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_name",
+          "type": "string"
+        },
+        {
+          "name": "strategy",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_mock_oracle",
+      "docs": [
+        "Update mock oracle prices",
+        "Fetches real-time prices and updates the mock oracle",
+        "Only callable by oracle authority"
+      ],
+      "discriminator": [
+        196,
+        202,
+        24,
+        173,
+        225,
+        179,
+        237,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "mock_oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  111,
+                  99,
+                  107,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mock_oracle.authority",
+                "account": "MockPriceOracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "btc_price",
+          "type": "i64"
+        },
+        {
+          "name": "eth_price",
+          "type": "i64"
+        },
+        {
+          "name": "sol_price",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_multi_asset",
+      "docs": [
+        "Withdraw from multi-asset vault by burning shares",
+        "This function implements proportional withdrawal across all vault assets",
+        "",
+        "**Parameters:**",
+        "- shares: Amount of vault shares to burn",
+        "- name: Vault name for PDA derivation",
+        "",
+        "**Process:**",
+        "1. Calculate withdrawal percentage (shares_to_burn / total_shares)",
+        "2. For each asset, calculate proportional amount to withdraw",
+        "3. Calculate total withdrawal value in USD",
+        "4. Transfer SOL back to user (30% of vault is in SOL)",
+        "5. For BTC/ETH: Calculate swap to SOL and add to user's withdrawal",
+        "6. Burn user's shares",
+        "7. Update vault state"
+      ],
+      "discriminator": [
+        146,
+        7,
+        232,
+        87,
+        254,
+        0,
+        154,
+        104
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_shares_ata",
+          "docs": [
+            "User's ATA holding vault shares (will be burned)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault_token_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vault_token_mint",
+          "docs": [
+            "Vault's share token mint"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.admin",
+                "account": "Vault"
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "btc_quote",
+          "docs": [
+            "Switchboard Oracle Quote for BTC/USD (only used when price_source = Switchboard)"
+          ]
+        },
+        {
+          "name": "eth_quote",
+          "docs": [
+            "Switchboard Oracle Quote for ETH/USD (only used when price_source = Switchboard)"
+          ]
+        },
+        {
+          "name": "sol_quote",
+          "docs": [
+            "Switchboard Oracle Quote for SOL/USD (only used when price_source = Switchboard)"
+          ]
+        },
+        {
+          "name": "clock",
+          "address": "SysvarC1ock11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MockPriceOracle",
+      "discriminator": [
+        163,
+        151,
+        169,
+        55,
+        252,
+        5,
+        24,
+        160
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "DepositEvent",
+      "discriminator": [
+        120,
+        248,
+        61,
+        83,
+        31,
+        142,
+        107,
+        144
+      ]
+    },
+    {
+      "name": "VaultCreatedEvent",
+      "discriminator": [
+        81,
+        80,
+        244,
+        58,
+        136,
+        54,
+        236,
+        111
+      ]
+    },
+    {
+      "name": "WithdrawEvent",
+      "discriminator": [
+        22,
+        9,
+        133,
+        26,
+        160,
+        44,
+        71,
+        192
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount: must be greater than 0"
+    },
+    {
+      "code": 6001,
+      "name": "InsufficientShares",
+      "msg": "Insufficient shares for withdrawal"
+    },
+    {
+      "code": 6002,
+      "name": "InsufficientAssets",
+      "msg": "Insufficient assets in vault"
+    },
+    {
+      "code": 6003,
+      "name": "MathOverflow",
+      "msg": "Math overflow occurred"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidUnderlyingAsset",
+      "msg": "Invalid underlying asset"
+    },
+    {
+      "code": 6005,
+      "name": "Unauthorized",
+      "msg": "Unauthorized: only vault authority can perform this action"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidQuote",
+      "msg": "Invalid Oracle Quote"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidQuoteSignature",
+      "msg": "Invalid Quote Signature"
+    },
+    {
+      "code": 6008,
+      "name": "StaleQuote",
+      "msg": "Stale Quote"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidPrice",
+      "msg": "Invalid Price"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidWeights",
+      "msg": "Sum of asset weights must equal 100"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidName",
+      "msg": "Vault name must be 1-32 characters"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidMint",
+      "msg": "Invalid asset mint provided"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidATA",
+      "msg": "Invalid ATA address for asset"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidAssetCount",
+      "msg": "Asset count must be 1-10"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidRemainingAccounts",
+      "msg": "Incorrect number of remaining accounts"
+    },
+    {
+      "code": 6016,
+      "name": "SwapFailed",
+      "msg": "Jupiter swap failed"
+    },
+    {
+      "code": 6017,
+      "name": "MarinadeError",
+      "msg": "Marinade stake/unstake failed"
+    },
+    {
+      "code": 6018,
+      "name": "AssetNotFound",
+      "msg": "Asset not found in vault composition"
+    },
+    {
+      "code": 6019,
+      "name": "InsufficientBalance",
+      "msg": "Insufficient balance for rebalance"
+    }
+  ],
+  "types": [
+    {
+      "name": "AssetConfig",
+      "docs": [
+        "Asset configuration within a vault's composition",
+        "Defines each asset in the basket with its weight and storage account"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "docs": [
+              "Asset mint (e.g., wBTC, wETH, SOL wrapped mint, or native SOL placeholder)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "weight",
+            "docs": [
+              "Allocation weight as percentage (e.g., 40 = 40%)",
+              "Sum of all weights in vault.assets must equal 100"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "ata",
+            "docs": [
+              "Vault's Associated Token Account for this asset",
+              "Stores the actual tokens for this asset"
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "deposit_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_deposited",
+            "type": "u64"
+          },
+          {
+            "name": "shares_minted",
+            "type": "u64"
+          },
+          {
+            "name": "tvl_usd",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MockPriceOracle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "btc_price",
+            "type": "i64"
+          },
+          {
+            "name": "eth_price",
+            "type": "i64"
+          },
+          {
+            "name": "sol_price",
+            "type": "i64"
+          },
+          {
+            "name": "last_update",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Switchboard"
+          },
+          {
+            "name": "MockOracle"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "docs": [
+        "Multi-asset vault account that stores composition, shares, and asset allocations",
+        "This is the core PDA for each unique vault instance"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for the vault PDA"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "admin",
+            "docs": [
+              "Admin/authority that can manage this vault (rebalance, update composition, etc.)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "docs": [
+              "Unique vault identifier/name (e.g., \"MVPVault\", \"AggressiveGrowth\")",
+              "Max 32 bytes to keep space reasonable"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "vault_token_mint",
+            "docs": [
+              "SPL mint for vault shares (each vault has unique shares)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "assets",
+            "docs": [
+              "Basket composition: array of assets with weights and ATAs",
+              "Vec is dynamic but we need to account for max size in space calculation"
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "AssetConfig"
+                }
+              }
+            }
+          },
+          {
+            "name": "marinade_strategy",
+            "docs": [
+              "Optional Marinade strategy PDA for SOL staking",
+              "Stored at vault level since each vault may have its own strategy state"
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "price_source",
+            "docs": [
+              "Price source configuration (Switchboard or MockOracle)",
+              "Allows testing on devnet with mock oracle, production with Switchboard"
+            ],
+            "type": {
+              "defined": {
+                "name": "PriceSource"
+              }
+            }
+          },
+          {
+            "name": "mock_oracle",
+            "docs": [
+              "Optional mock oracle account (used when price_source = MockOracle)"
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultCreatedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "vault_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "num_assets",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_burned",
+            "type": "u64"
+          },
+          {
+            "name": "amount_withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "tvl_usd",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
