@@ -473,21 +473,21 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
         <p className="text-sm text-muted-foreground">Your SOL has been deposited</p>
       </div>
 
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+      <div className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/20 rounded-lg p-3">
         <div className="space-y-2">
             <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">Amount:</span>
-            <span className="text-xs font-semibold">{amount} SOL</span>
+            <span className="text-xs font-semibold text-foreground">{amount} SOL</span>
             </div>
             <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">Shares:</span>
-            <span className="text-xs font-semibold">{sharesReceived.toLocaleString()}</span>
+            <span className="text-xs font-semibold text-foreground">{sharesReceived.toLocaleString()}</span>
             </div>
           {txHash && (
             <div className="flex justify-between items-center">
               <span className="text-xs text-muted-foreground">Transaction:</span>
               <div className="flex items-center gap-1">
-                <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded text-xs">
+                <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded text-foreground">
                   {txHash.slice(0, 8)}...
                 </span>
                 <a
@@ -501,8 +501,8 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
               </div>
             </div>
           )}
-            </div>
-          </div>
+        </div>
+      </div>
 
       <Button 
         onClick={handleClose}

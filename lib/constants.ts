@@ -1,8 +1,8 @@
 // Solana Program and Vault Addresses
-export const VAULT_ADDRESS = "FsoSA6MxmuQ6yz9ZJ9EqmizYLZq8KoVWnoudpv1Yww8u";
+export const VAULT_ADDRESS = "4CGJSLVrMmC3rznuUhJzTDtK6NH4sXXzLCun47W6dcSF";
 
 // Your deployed program address
-export const VAULT_PROGRAM_ID = "FsoSA6MxmuQ6yz9ZJ9EqmizYLZq8KoVWnoudpv1Yww8u";
+export const VAULT_PROGRAM_ID = "4CGJSLVrMmC3rznuUhJzTDtK6NH4sXXzLCun47W6dcSF";
 
 // Vault Admin (the account that created the vault)
 export const VAULT_ADMIN = "59j61YR6iUtYxHaqL8bJutN9XLDwwJXrnYhVGC2uDsxu";
@@ -27,7 +27,7 @@ export const SOL_USD_FEED = "DAXAq94Y5nX2dDp15SdeBzYRqTn8viFf9Dxq4ws7rHec";
 export const MARINADE_STATE = "8szGkuLTAux9XMgZ2vtY39jVSowEcpBfFfD8hXSEqdGC";
 export const MSOL_MINT = "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So";
 export const MARINADE_PROGRAM_ID = "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD";
-export const MARINADE_STRATEGY_PROGRAM = "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD"; // Replace
+export const MARINADE_STRATEGY_PROGRAM = "5QSX9wJvzkDzCT8mGewJGXgtiN7Hq4DqN4VZFhRiWuJh"; // Replace
 
 // Network configuration
 export const NETWORK = "devnet"; // or "mainnet-beta"

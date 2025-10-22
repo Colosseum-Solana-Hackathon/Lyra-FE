@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ChevronDown, RefreshCcw } from "lucide-react";
+import { ChevronDown, RefreshCcw, Loader2 } from "lucide-react";
 import { Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getBasicJupiterTokens, getJupiterOrder, postJupiterExecute } from "@/lib/api";
@@ -105,11 +105,13 @@ export function SwapCard() {
   const [fromBalance, setFromBalance] = useState<number | null>(null);
   const [toBalance, setToBalance] = useState<number | null>(null);
   const [basicTokens, setBasicTokens] = useState<Token[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(true);
 
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
       try {
+        setTokensLoading(true);
         const resp = await getBasicJupiterTokens({ symbols: "SOL,USDT" });
         const mapped: Token[] = resp.data.map((t: any) => ({
           symbol: t.symbol,
@@ -147,6 +149,8 @@ export function SwapCard() {
         if (!ac.signal.aborted) console.error("Failed to load basic tokens:", e?.message);
         setFromToken(PLACEHOLDER);
         setToToken(PLACEHOLDER);
+      } finally {
+        if (!ac.signal.aborted) setTokensLoading(false);
       }
     })();
     return () => ac.abort();
@@ -558,6 +562,31 @@ export function SwapCard() {
   };
   const hasQuote = !!requestId && !!amountTo && !quoteErr;
   const canSwap = !swapLoading && connected && hasQuote && hasSufficientBalance;
+
+  // Show loading state while tokens are being fetched
+  if (tokensLoading) {
+    return (
+      <Card className="w-full border-border/60 bg-card shadow-xl shadow-primary/5">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-center text-2xl font-semibold tracking-tight lg:text-3xl">
+            Swap
+          </CardTitle>
+          <Separator className="mx-auto mt-4 w-32" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-lg mb-4">
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Fetching the best prices</h3>
+            <p className="text-muted-foreground text-center">
+              Sit tight while we load the latest token prices and trading pairs...
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
 

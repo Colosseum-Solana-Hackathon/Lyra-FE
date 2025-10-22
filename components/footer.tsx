@@ -1,6 +1,6 @@
 'use client'
 
-import { Youtube, Github, Mail, Globe, MapPin } from "lucide-react"
+import { Youtube, Github, Mail, Globe, MapPin, Linkedin } from "lucide-react"
 // import { X } from "../public/images/logo-x.png"
 
 export default function Footer() {
@@ -34,6 +34,9 @@ export default function Footer() {
             </a> */}
                         <a href="https://github.com/" target="_blank" rel="noreferrer" className="p-2 rounded-md hover:bg-primary/5 transition">
                             <Github className="h-5 w-5 text-primary" />
+                        </a>
+                        <a href="https://www.linkedin.com/company/lyramsquare" target="_blank" rel="noreferrer" className="p-2 rounded-md hover:bg-primary/5 transition">
+                            <Linkedin className="h-5 w-5 text-green-500" />
                         </a>
                     </div>
                 </div>

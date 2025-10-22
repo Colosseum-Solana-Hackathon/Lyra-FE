@@ -84,11 +84,8 @@ export function TokenSelectDialog({ open, onOpenChange, onSelect, tokens, spotli
       <DialogContent
         className={cn("max-w-lg gap-0 border-border/60 bg-card p-0", "shadow-2xl ring-1 ring-(--lyra-primary)/10")}
       >
-        <DialogHeader className="flex flex-row items-center justify-between border-b border-border/60 p-4">
+        <DialogHeader className="border-b border-border/60 p-4">
           <DialogTitle className="text-xl font-semibold">Select a token</DialogTitle>
-          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Close">
-            <X className="size-4" />
-          </Button>
         </DialogHeader>
 
         <div className="p-4">

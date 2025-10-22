@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Wallet } from "lucide-react"
 import { MoonPayFallback } from "./moonpay-fallback"
 import { MoonPayLogo } from "./moonpay-logo"
+import { useWallet } from "@solana/wallet-adapter-react"
 
 const MoonPayBuyWidget = dynamic(
   () => import('@moonpay/moonpay-react').then((mod) => mod.MoonPayBuyWidget),
@@ -25,13 +26,20 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [showFallback, setShowFallback] = useState(false)
+  
+  // Wallet connection state
+  const { connected, publicKey } = useWallet()
 
   useEffect(() => {
     setIsClient(true)
-    // Auto-trigger the purchase flow when component mounts
-    console.log('MoonPay: Component mounted, auto-starting purchase')
-    handleStartPurchase()
-  }, [])
+    // Only auto-trigger if wallet is connected
+    if (connected) {
+      console.log('MoonPay: Component mounted, wallet connected, auto-starting purchase')
+      handleStartPurchase()
+    } else {
+      console.log('MoonPay: Component mounted, wallet not connected')
+    }
+  }, [connected])
 
   const handleStartPurchase = () => {
     console.log('MoonPay: Starting purchase flow')
@@ -108,6 +116,52 @@ export function MoonPayWidget({ onClose }: MoonPayWidgetProps) {
           </CardContent>
         </Card>
       </div>
+    )
+  }
+
+  // Show wallet connection prompt if not connected
+  if (!connected) {
+    return (
+      <>
+        {/* Blur background */}
+        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md" />
+        
+        {/* Wallet connection modal */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-card/98 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-8">
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                  <Wallet className="h-8 w-8 text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
+                    Connect Your Wallet
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Please connect your Solana wallet to access MoonPay and start purchasing crypto.
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    variant="outline" 
+                    onClick={onClose}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => window.location.reload()}
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90"
+                  >
+                    Connect Wallet
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 
