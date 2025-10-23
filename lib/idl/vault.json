@@ -1,5 +1,5 @@
 {
-  "address": "FsoSA6MxmuQ6yz9ZJ9EqmizYLZq8KoVWnoudpv1Yww8u",
+  "address": "4CGJSLVrMmC3rznuUhJzTDtK6NH4sXXzLCun47W6dcSF",
   "metadata": {
     "name": "vault",
     "version": "0.1.0",
@@ -840,6 +840,13 @@
           "signer": true
         },
         {
+          "name": "sol_receiver",
+          "docs": [
+            "System-owned account to receive SOL from Marinade (required by Marinade)"
+          ],
+          "writable": true
+        },
+        {
           "name": "user_shares_ata",
           "docs": [
             "User's ATA holding vault shares (will be burned)"
@@ -986,6 +993,60 @@
           ]
         },
         {
+          "name": "marinade_strategy_program",
+          "docs": [
+            "Marinade Strategy program (for CPI)"
+          ]
+        },
+        {
+          "name": "marinade_program",
+          "docs": [
+            "Marinade Finance program (passed through to strategy)"
+          ]
+        },
+        {
+          "name": "marinade_state",
+          "docs": [
+            "Marinade state account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "msol_mint",
+          "docs": [
+            "mSOL token mint"
+          ],
+          "writable": true
+        },
+        {
+          "name": "liq_pool_msol_leg",
+          "docs": [
+            "Liquidity pool mSOL leg"
+          ],
+          "writable": true
+        },
+        {
+          "name": "liq_pool_sol_leg_pda",
+          "docs": [
+            "Liquidity pool SOL leg PDA"
+          ],
+          "writable": true
+        },
+        {
+          "name": "strategy_msol_ata",
+          "docs": [
+            "Strategy's mSOL ATA"
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury_msol_account",
+          "docs": [
+            "Treasury mSOL account"
+          ],
+          "writable": true
+        },
+        {
           "name": "clock",
           "address": "SysvarC1ock11111111111111111111111111111111"
         },
@@ -1000,6 +1061,10 @@
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
