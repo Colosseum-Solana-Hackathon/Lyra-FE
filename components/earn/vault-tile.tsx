@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress"; // if you don't have one, replace with a div + w-[%]
 import { cn } from "@/lib/utils";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, TrendingDown } from "lucide-react";
 import { DepositModal } from "./deposit-modal";
+import { WithdrawModal } from "./withdraw-modal";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import {
     LineChart,
     Line,
@@ -217,6 +220,46 @@ function usd(n: number | undefined, digits = 2) {
 export function VaultTile() {
     const prices = useLivePrices();
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+    const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+    const [hasVaultTokens, setHasVaultTokens] = useState(false);
+    
+    // Wallet connection
+    const { connected, publicKey } = useWallet();
+    const { connection } = useConnection();
+    
+    // Check for vault tokens
+    useEffect(() => {
+        const checkVaultTokens = async () => {
+            if (!connected || !publicKey || !connection) {
+                setHasVaultTokens(false);
+                return;
+            }
+            
+            try {
+                // Check for vault token balance
+                const vaultTokenMint = "CGGbBTDZVXQc4G2f4Nm6je9GcMNUsQ1Kro1jR5zdTsci"; // From your constants
+                
+                const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+                    mint: new PublicKey(vaultTokenMint)
+                });
+                
+                if (tokenAccounts.value.length > 0) {
+                    const balance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+                    setHasVaultTokens((balance || 0) > 0);
+                    console.log("Vault token balance for button:", balance);
+                } else {
+                    setHasVaultTokens(false);
+                    console.log("No vault token account found");
+                }
+            } catch (error) {
+                console.error("Failed to check vault tokens:", error);
+                setHasVaultTokens(false);
+            }
+        };
+        
+        checkVaultTokens();
+    }, [connected, publicKey, connection]);
+    
     // keep a small rolling history for sparklines
     const [hist, setHist] = useState<Array<{ t: number; BTC: number; SOL: number; ETH: number }>>([]);
 
@@ -284,6 +327,19 @@ export function VaultTile() {
                         onClick={() => setIsDepositModalOpen(true)}
                     >
                         Deposit
+                    </Button>
+                    <Button 
+                        className={`px-5 py-2.5 border border-red-200 text-black ${
+                            hasVaultTokens 
+                                ? 'bg-red-100 hover:bg-red-200 hover:border-red-300' 
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                        onClick={() => hasVaultTokens && setIsWithdrawModalOpen(true)}
+                        disabled={!hasVaultTokens}
+                        title={!hasVaultTokens ? "No vault tokens to withdraw" : "Withdraw from vault"}
+                    >
+                        <TrendingDown className="mr-2 h-4 w-4" />
+                        Withdraw
                     </Button>
                     <Button variant="outline" className="px-4">
                         Details <ArrowUpRight className="ml-1 size-4" />
@@ -487,6 +543,10 @@ export function VaultTile() {
             <DepositModal 
                 isOpen={isDepositModalOpen} 
                 onClose={() => setIsDepositModalOpen(false)} 
+            />
+            <WithdrawModal 
+                isOpen={isWithdrawModalOpen} 
+                onClose={() => setIsWithdrawModalOpen(false)} 
             />
         </>
     );

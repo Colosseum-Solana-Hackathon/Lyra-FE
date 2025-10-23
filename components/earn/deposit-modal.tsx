@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MiniNumpad } from "./mini-numpad"
 import { ArrowLeft, Loader2, CheckCircle, AlertCircle, Wallet, TrendingUp, ExternalLink, Zap, Delete, Percent } from "lucide-react"
 import { useSolanaDeposit } from "@/hooks/use-solana-deposit"
 import { useWallet, useConnection } from "@solana/wallet-adapter-react"
@@ -182,18 +181,10 @@ export function DepositModal({ isOpen, onClose }: DepositModalProps) {
 
     return (
       <div className="space-y-4 sm:space-y-6">
-        {/* Header with Close Button */}
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div className="text-center">
           <h2 className="text-lg sm:text-xl font-bold">Deposit SOL</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-lg hover:bg-gray-100 sm:h-10 sm:w-10 sm:text-xl"
-            onClick={handleClose}
-          >
-            ×
-          </Button>
-      </div>
+        </div>
 
         {!connected && (
           <div className="text-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
