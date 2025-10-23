@@ -9,10 +9,7 @@
 
 # production
 /build
-
-# IDL files
 /lib/idl/
-
 admin-keypair.json
 # debug
 npm-debug.log*
