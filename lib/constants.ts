@@ -6,12 +6,13 @@ export const VAULT_PROGRAM_ID = "4CGJSLVrMmC3rznuUhJzTDtK6NH4sXXzLCun47W6dcSF";
 
 // Vault Admin (the account that created the vault)
 export const VAULT_ADMIN = "59j61YR6iUtYxHaqL8bJutN9XLDwwJXrnYhVGC2uDsxu";
-
+export const TOKEN_MINT = "Bgh1fPAzo15Jgv1dzjfc4hbw2YxAKwe46hoRUEAcTvWK";
 // Vault Name (the name used when creating the vault)
 export const VAULT_NAME = "SOL-BTC-ETH-Index";
 
 // Mock Oracle for devnet testing (derived PDA: ["mock_oracle", admin_pubkey])
-export const MOCK_ORACLE = "88Y7xK8ZzfQuYKjSM3Nqt6rvAkJLAoZAejU6z8piEUPo";
+// export const MOCK_ORACLE = "88Y7xK8ZzfQuYKjSM3Nqt6rvAkJLAoZAejU6z8piEUPo";
+export const MOCK_ORACLE = "GLD8qHUW7vPHTaky6ojeXuSLPy3AL1gv2m15s1Y2pMEX";
 
 // Asset Mints for the ETF Vault (wrapped tokens on Solana)
 export const BTC_MINT = "CqcPvtoEthDVBKv8bDtGYEoDLjNCDyA41AQPRb3L8pxA"; // Wrapped BTC
@@ -27,7 +28,7 @@ export const SOL_USD_FEED = "DAXAq94Y5nX2dDp15SdeBzYRqTn8viFf9Dxq4ws7rHec";
 export const MARINADE_STATE = "8szGkuLTAux9XMgZ2vtY39jVSowEcpBfFfD8hXSEqdGC";
 export const MSOL_MINT = "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So";
 export const MARINADE_PROGRAM_ID = "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD";
-export const MARINADE_STRATEGY_PROGRAM = "5QSX9wJvzkDzCT8mGewJGXgtiN7Hq4DqN4VZFhRiWuJh"; // Replace
+export const MARINADE_STRATEGY_PROGRAM = "Eud9MdyGy8HdBzfv6kjKio1uagRWdn69821ajBs7DeqK"; 
 
 // Network configuration
 export const NETWORK = "devnet"; // or "mainnet-beta"

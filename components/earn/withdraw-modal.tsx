@@ -39,8 +39,10 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
   useEffect(() => {
     if (amount) {
       if (inputMode === 'Shares') {
+        // For shares, calculate USD value based on share price
         setUsdValue(parseFloat(amount) * solPrice)
       } else {
+        // For USDC, the amount is already in USD
         setUsdValue(parseFloat(amount))
       }
     } else {
@@ -56,12 +58,12 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     }
 
     const numAmount = parseFloat(amount)
-    const solAmount = inputMode === 'Shares' ? numAmount : numAmount / solPrice
+    const sharesToRedeem = inputMode === 'Shares' ? numAmount : numAmount / solPrice
 
-    if (solAmount > userShares) {
+    if (sharesToRedeem > userShares) {
       setInputError(`Insufficient shares. You have ${userShares.toFixed(4)} shares available.`)
-    } else if (solAmount < 0.001) {
-      setInputError('Minimum withdraw amount is 0.001 Shares')
+    } else if (sharesToRedeem < 0.001) {
+      setInputError('Minimum withdraw amount is 0.001 shares')
     } else {
       setInputError(null)
     }
@@ -74,7 +76,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
         try {
           // Fetch vault token balance from wallet
           // The vault token mint address from your constants
-          const vaultTokenMint = "CGGbBTDZVXQc4G2f4Nm6je9GcMNUsQ1Kro1jR5zdTsci" // From your constants
+          const vaultTokenMint = "Bgh1fPAzo15Jgv1dzjfc4hbw2YxAKwe46hoRUEAcTvWK" // From your constants
           
           // Get token accounts for the user
           const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
@@ -121,9 +123,16 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
   }
 
   const handlePercentageClick = (percentage: number) => {
-    const maxAmount = userShares
-    const calculatedAmount = (maxAmount * percentage) / 100
-    setAmount(calculatedAmount.toFixed(6))
+    const maxShares = userShares
+    const calculatedShares = (maxShares * percentage) / 100
+    
+    if (inputMode === 'Shares') {
+      setAmount(calculatedShares.toFixed(6))
+    } else {
+      // Convert shares to USDC equivalent
+      const usdcAmount = calculatedShares * solPrice
+      setAmount(usdcAmount.toFixed(2))
+    }
     setSelectedPercentage(percentage)
   }
 
@@ -146,13 +155,17 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     
     try {
       const numAmount = parseFloat(amount)
-      const solAmount = inputMode === 'Shares' ? numAmount : numAmount / solPrice
+      // For withdrawal, we always pass the number of shares to redeem
+      // The backend will calculate the SOL amount based on current share price
+      const sharesToRedeem = inputMode === 'Shares' ? numAmount : numAmount / solPrice
       
-      const result = await withdraw(solAmount)
+      console.log(`[WithdrawModal] Redeeming ${sharesToRedeem} shares`)
+      
+      const result = await withdraw(sharesToRedeem)
       
       if (result.success) {
         setTxHash(result.transactionHash || "")
-        setSharesRedeemed(result.sharesRedeemed || solAmount)
+        setSharesRedeemed(result.sharesRedeemed || sharesToRedeem)
         setStep("success")
       } else {
         setInputError(result.error || "Withdrawal failed")
@@ -285,7 +298,7 @@ export function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
         <div className="text-sm sm:text-base text-muted-foreground">
           {inputMode === 'Shares' 
             ? `≈ $${usdValue.toFixed(2)} USD` 
-            : `≈ ${(usdValue / solPrice).toFixed(4)} Shares`
+            : `≈ ${(usdValue / solPrice).toFixed(4)} shares`
           }
         </div>
       </div>

@@ -237,7 +237,7 @@ export function VaultTile() {
             
             try {
                 // Check for vault token balance
-                const vaultTokenMint = "CGGbBTDZVXQc4G2f4Nm6je9GcMNUsQ1Kro1jR5zdTsci"; // From your constants
+                const vaultTokenMint = "Bgh1fPAzo15Jgv1dzjfc4hbw2YxAKwe46hoRUEAcTvWK"; // From your constants
                 
                 const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
                     mint: new PublicKey(vaultTokenMint)

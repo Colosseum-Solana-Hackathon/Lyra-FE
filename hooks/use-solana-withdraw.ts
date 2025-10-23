@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, Transaction } from "@solana/web3.js";
+import { anchorClient } from "@/lib/anchor-client";
 
 export interface WithdrawResult {
   success: boolean;
@@ -27,10 +28,20 @@ export function useSolanaWithdraw(): UseSolanaWithdrawReturn {
     if (!publicKey) return false;
     
     try {
-      // Mock shares check - in production, query your vault program
-      // This would check the user's vault token balance
-      const mockUserShares = 10.5; // This would come from your vault program
-      return mockUserShares >= amount;
+      // Get user's actual vault token balance
+      const connection = anchorClient.getConnection();
+      const vaultTokenMint = "Bgh1fPAzo15Jgv1dzjfc4hbw2YxAKwe46hoRUEAcTvWK"; // From constants
+      
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+        mint: new PublicKey(vaultTokenMint)
+      });
+      
+      if (tokenAccounts.value.length > 0) {
+        const balance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+        return (balance || 0) >= amount;
+      }
+      
+      return false;
     } catch (err: any) {
       console.error("Shares check failed:", err);
       return false;
@@ -59,25 +70,35 @@ export function useSolanaWithdraw(): UseSolanaWithdrawReturn {
         return { success: false, error: "Insufficient shares" };
       }
 
-      // Mock withdrawal process - replace with actual Solana program interaction
-      // In production, you would:
-      // 1. Create a transaction to call your vault program's withdraw function
-      // 2. Sign and send the transaction
-      // 3. Wait for confirmation
-      
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Mock delay
-      
-      // Mock transaction hash
-      const mockTxHash = "mock_withdraw_tx_" + Date.now();
-      setLastTransaction(mockTxHash);
-      
-      return {
-        success: true,
-        transactionHash: mockTxHash,
-        sharesRedeemed: amount
-      };
+      console.log(`[WithdrawHook] Initiating withdrawal of ${amount} shares`);
+
+      // Call the actual Solana program withdrawal
+      const result = await anchorClient.withdrawSOL(
+        publicKey,
+        amount,
+        signTransaction
+      );
+
+      if (result.success) {
+        console.log(`[WithdrawHook] Withdrawal successful: ${result.txHash}`);
+        setLastTransaction(result.txHash || null);
+        
+        return {
+          success: true,
+          transactionHash: result.txHash,
+          sharesRedeemed: result.solReceived || amount
+        };
+      } else {
+        console.error(`[WithdrawHook] Withdrawal failed: ${result.error}`);
+        setError(result.error || "Withdrawal failed");
+        return { 
+          success: false, 
+          error: result.error || "Withdrawal failed" 
+        };
+      }
     } catch (err: any) {
       const errorMessage = err?.message || "Withdrawal failed";
+      console.error("[WithdrawHook] Withdrawal error:", err);
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
