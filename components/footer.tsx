@@ -10,7 +10,7 @@ export default function Footer() {
                 {/* Brand / About */}
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                        <img src="/images/lyra-logo.png" alt="Lyra logo" className="h-10 w-auto" />
+                        <img src="/images/lyra-logo.png" alt="Lyra logo" className="h-14 w-auto" />
                         <div>
                             <h3 className="text-xl font-semibold text-primary">Lyra</h3>
                             <p className="text-xs text-muted-foreground">Break Free from Tradfi.</p>
