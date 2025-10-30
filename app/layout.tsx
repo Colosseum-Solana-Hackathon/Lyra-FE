@@ -13,7 +13,7 @@ import AppLoader from "@/components/app-loader"
 
 export const metadata: Metadata = {
   title: "Lyra",
-  description: "Lyra — sleek web3 swapping",
+  description: "Lyra — Hedged Crypto ETFs",
   generator: "v0.app",
 }
 
