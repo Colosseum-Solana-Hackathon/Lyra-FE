@@ -10,9 +10,16 @@ import {
   // BackpackWalletAdapter,
   // SolletExtensionWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
+import { useWalletTracking } from "@/hooks/use-wallet-tracking";
 
 // Import default wallet button styles
 import "@solana/wallet-adapter-react-ui/styles.css";
+
+// Component to handle wallet tracking
+function WalletTracker() {
+  useWalletTracking();
+  return null;
+}
 
 export const SolanaWalletProvider: FC<{ children: ReactNode }> = ({ children }) => {
   // RPC endpoint (use mainnet-beta or devnet)
@@ -32,7 +39,10 @@ export const SolanaWalletProvider: FC<{ children: ReactNode }> = ({ children }) 
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
+        <WalletModalProvider>
+          <WalletTracker />
+          {children}
+        </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
