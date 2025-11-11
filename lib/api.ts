@@ -1,5 +1,16 @@
 // lib/api.ts
 
+import { apiClient } from "@/utils/apiClient";
+import { getApiBaseUrl } from "@/lib/api-config";
+
+// Re-export for backward compatibility
+export { getApiBaseUrl };
+
+// Helper function for legacy request function
+function stripTrailingSlash(u: string) {
+  return u.replace(/\/+$/, "");
+}
+
 export type BasicJupiterTokensResponse = {
   data: BasicJupiterToken[];
   meta: {
@@ -20,40 +31,6 @@ export type BasicJupiterToken = {
 };
 
 
-export type Env = "development" | "production";
-
-function getRuntimeEnv(): Env {
-  const explicit = (process.env.NEXT_PUBLIC_ENV || "").toLowerCase();
-  if (explicit.startsWith("prod")) return "production";
-
-  // Fallbacks based on common Next/Vercel envs
-  const ve = (process.env.VERCEL_ENV || "").toLowerCase();
-  if (ve === "production") return "production";
-
-  return "development";
-}
-
-function stripTrailingSlash(u: string) {
-  return u.replace(/\/+$/, "");
-}
-
-/**
- * Resolve the API base URL depending on env.
- * Priority:
- *  1) NEXT_PUBLIC_API_BASE_URL (always wins if set)
- *  2) Production API URL (if production env)
- *  3) Dev default: http://localhost:8000
- */
-export function getApiBaseUrl() {
-  const forced = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (forced) return stripTrailingSlash(forced);
-
-  const env = getRuntimeEnv();
-  if (env === "production" && process.env.NEXT_PUBLIC_PROD_API_BASE_URL) {
-    return stripTrailingSlash(process.env.NEXT_PUBLIC_PROD_API_BASE_URL);
-  }
-  return "http://localhost:8000"; // dev default
-}
 
 function toQuery(params?: Record<string, unknown>) {
   if (!params) return "";
@@ -116,9 +93,15 @@ export type JupiterTokensResponse = {
 };
 
 export function getJupiterTokens(params?: JupiterTokensParams) {
-  return request<JupiterTokensResponse>("/api/jupiter/tokens", {
+  // Build query string
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.set("page", String(params.page));
+  if (params?.limit) queryParams.set("limit", String(params.limit));
+  const queryString = queryParams.toString();
+  const endpoint = `/api/jupiter/tokens${queryString ? `?${queryString}` : ""}`;
+  
+  return apiClient.request<JupiterTokensResponse>(endpoint, {
     method: "GET",
-    query: params,
   });
 }
 
@@ -136,7 +119,22 @@ export function getJupiterOrder(
   params: JupiterOrderParams,
   opts?: { signal?: AbortSignal }
 ) {
-  return request<any>("/api/jupiter/order", { query: params, signal: opts?.signal });
+  // Build query string
+  const queryParams = new URLSearchParams();
+  if (params.inputMint) queryParams.set("inputMint", String(params.inputMint));
+  if (params.outputMint) queryParams.set("outputMint", String(params.outputMint));
+  if (params.amount) queryParams.set("amount", String(params.amount));
+  if (params.taker) queryParams.set("taker", String(params.taker));
+  if (params.slippageBps) queryParams.set("slippageBps", String(params.slippageBps));
+  if (params.referralAccount) queryParams.set("referralAccount", String(params.referralAccount));
+  if (params.referralFee) queryParams.set("referralFee", String(params.referralFee));
+  const queryString = queryParams.toString();
+  const endpoint = `/api/jupiter/order${queryString ? `?${queryString}` : ""}`;
+  
+  return apiClient.request<any>(endpoint, {
+    method: "GET",
+    signal: opts?.signal,
+  });
 }
 export type BasicJupiterTokensParams = {
   symbols?: string; // comma-separated symbols, e.g. "SOL,USDT"
@@ -144,9 +142,14 @@ export type BasicJupiterTokensParams = {
 
 
 export function getBasicJupiterTokens(params?: BasicJupiterTokensParams) {
-  return request<BasicJupiterTokensResponse>("/api/jupiter/tokens/basic", {
+  // Build query string
+  const queryParams = new URLSearchParams();
+  if (params?.symbols) queryParams.set("symbols", params.symbols);
+  const queryString = queryParams.toString();
+  const endpoint = `/api/jupiter/tokens/basic${queryString ? `?${queryString}` : ""}`;
+  
+  return apiClient.request<BasicJupiterTokensResponse>(endpoint, {
     method: "GET",
-    query: params,
   });
 }
 export type JupiterExecuteBody = {
@@ -158,7 +161,7 @@ export function postJupiterExecute(
   body: JupiterExecuteBody,
   opts?: { signal?: AbortSignal }
 ) {
-  return request<any>("/api/jupiter/execute", {
+  return apiClient.request<any>("/api/jupiter/execute", {
     method: "POST",
     body: JSON.stringify(body),
     signal: opts?.signal,
@@ -172,8 +175,68 @@ export type JupiterTokensSearchParams = {
 };
 
 export function getJupiterTokensSearch(params: JupiterTokensSearchParams) {
-  return request<JupiterTokensResponse>("/api/jupiter/tokens/search", {
+  // Build query string
+  const queryParams = new URLSearchParams();
+  if (params.q) queryParams.set("q", params.q);
+  if (params.page) queryParams.set("page", String(params.page));
+  if (params.limit) queryParams.set("limit", String(params.limit));
+  const queryString = queryParams.toString();
+  const endpoint = `/api/jupiter/tokens/search${queryString ? `?${queryString}` : ""}`;
+  
+  return apiClient.request<JupiterTokensResponse>(endpoint, {
     method: "GET",
-    query: params,
   });
 }
+
+/* ---------------- Wallet tracking endpoints ---------------- */
+export type WalletConnectionData = {
+  walletAddress: string; // Public key as string
+  walletProvider: string; // e.g., "Phantom", "Solflare", etc.
+  connectedAt: string; // ISO timestamp
+  network?: string; // "mainnet-beta", "devnet", etc.
+  userAgent?: string; // Browser user agent
+  sessionId?: string; // Optional: for tracking sessions
+};
+
+export type WalletConnectionResponse = {
+  success: boolean;
+  message?: string;
+  walletId?: string; // Backend-generated ID if needed
+};
+
+export function postWalletConnection(data: WalletConnectionData) {
+  return request<WalletConnectionResponse>("/api/wallet/connect", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/* ---------------- Auth endpoints ---------------- */
+// Note: For authenticated requests, use apiClient from @/utils/apiClient
+// These types are exported for reference
+
+export type AuthRefreshRequest = {
+  refreshToken: string;
+};
+
+export type AuthRefreshResponse = {
+  success: boolean;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
+};
+
+export type AuthUserResponse = {
+  success: boolean;
+  user: {
+    id: string;
+    email: string;
+    [key: string]: any;
+  };
+};
+
+export type AuthLogoutResponse = {
+  success: boolean;
+  message?: string;
+};
