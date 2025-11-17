@@ -68,7 +68,7 @@ class ApiClient {
       } else {
         // Refresh failed, redirect to login
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          window.location.href = "/";
         }
         throw new Error("Authentication failed");
       }
