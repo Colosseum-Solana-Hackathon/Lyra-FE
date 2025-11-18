@@ -32,9 +32,9 @@ export function useAuth() {
   const logout = async () => {
     await authService.logout();
     setUser(null);
-    // Redirect to login page
+    // Redirect to home page to connect wallet
     if (typeof window !== "undefined") {
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   };
 

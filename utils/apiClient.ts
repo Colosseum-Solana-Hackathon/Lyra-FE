@@ -66,9 +66,9 @@ class ApiClient {
 
         return retryResponse.json();
       } else {
-        // Refresh failed, redirect to login
+        // Refresh failed, redirect to home page to connect wallet
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          window.location.href = "/";
         }
         throw new Error("Authentication failed");
       }
