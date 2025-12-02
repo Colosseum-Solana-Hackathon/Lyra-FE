@@ -1,10 +1,28 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import  ConnectButton from "@/components/wallet/connect-button"
 
 export function SiteHeader() {
+  const pathname = usePathname()
+
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/onramp", label: "OnRamp" },
+    { href: "/swap", label: "Swap" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/earn", label: "Earn" },
+  ]
+
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return pathname === href
+    }
+    return pathname.startsWith(href)
+  }
+
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -14,21 +32,26 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Home
-          </Link>
-          <Link href="/onramp" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            OnRamp
-          </Link>
-          <Link href="/swap" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Swap
-          </Link>
-          <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Dashboard
-          </Link>
-          <Link href="/earn" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            Earn
-          </Link>
+          {navLinks.map((link) => {
+            const active = isActive(link.href)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "text-sm font-medium transition-colors relative",
+                  active
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {link.label}
+                {active && (
+                  <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full" />
+                )}
+              </Link>
+            )
+          })}
         </nav>
 
         <div className="flex items-center gap-4">
